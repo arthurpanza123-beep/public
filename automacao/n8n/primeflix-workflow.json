@@ -1,0 +1,1248 @@
+{
+  "name": "Primeflix Bot - Atendimento Principal",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ?? ENTRADA DO WHATSAPP\n\nAqui come?a tudo. Esse bloco recebe a mensagem que chegou no WhatsApp, pega o n?mero do cliente, o nome se existir, o texto enviado e prepara essas informa??es para o restante do fluxo. Ele n?o responde ainda; apenas organiza a entrada para o sistema entender quem falou e o que foi falado.\n\nCobre os nodes:\n- WhatsApp - entrada\n- Normalizar entrada",
+        "height": 500,
+        "width": 620,
+        "color": 2718207
+      },
+      "id": "note-entrada-whatsapp",
+      "name": "ENTRADA DO WHATSAPP",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2020,
+        -250
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ?? CLIENTE / SUPABASE\n\nEsse bloco consulta o Supabase para saber se esse n?mero j? existe, se j? recebeu o fluxo inicial, qual ? o status atual do atendimento e se o bot est? pausado. Essa etapa evita repetir o fluxo inicial e impede o bot de responder quando Arthur estiver no controle.\n\nCobre os nodes:\n- Supabase - buscar contato\n- Decidir rota segura",
+        "height": 500,
+        "width": 620,
+        "color": 51283
+      },
+      "id": "note-cliente-supabase",
+      "name": "CLIENTE / SUPABASE",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1340,
+        -250
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ?? ROTEADOR PRINCIPAL\n\nEsse ? o centro visual e l?gico do workflow. Ele decide para onde a mensagem deve ir: fluxo inicial, resposta com IA, pedido de teste, envio de valores, aviso para Arthur, pausa humana ou outra a??o. Ele s? deixa a IA agir depois que o fluxo inicial j? foi enviado.\n\nCobre o node:\n- Roteador",
+        "height": 500,
+        "width": 480,
+        "color": 16766464
+      },
+      "id": "note-roteador-principal",
+      "name": "ROTEADOR PRINCIPAL",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        -250
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ?? FLUXO INICIAL OFICIAL\n\nEsse bloco executa o fluxo obrigat?rio de apresenta??o. Ele manda os ?udios oficiais, a imagem de feedbacks e o ?udio final. Esse fluxo ? intoc?vel, nunca deve ser alterado pela IA e nunca deve repetir para o mesmo telefone.\n\nOrdem obrigat?ria:\n1. apresentacao01.ogg\n2. apresentacao02.ogg\n3. feedbaks.jpeg com legenda oficial\n4. qualatv.ogg\n\nCobre os nodes:\n- Supabase - marcar fluxo inicial\n- WhatsApp - fluxo inicial oficial\n- Supabase - liberar IA",
+        "height": 500,
+        "width": 900,
+        "color": 16739584
+      },
+      "id": "note-fluxo-inicial-oficial",
+      "name": "FLUXO INICIAL OFICIAL",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        -250
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ?? RESPOSTA COM IA\n\nEsse bloco usa a KIE AI com Claude Haiku 4.5 para entender perguntas do cliente depois do fluxo inicial. A IA deve responder curto, natural e com foco em conduzir a venda, mas sem inventar pre?o, promo??o, prazo ou informa??o que n?o esteja nas regras.\n\nCobre os nodes:\n- KIE AI - Claude Haiku\n- Sanitizar resposta IA\n- WhatsApp - enviar IA",
+        "height": 650,
+        "width": 900,
+        "color": 11141375
+      },
+      "id": "note-resposta-ia",
+      "name": "RESPOSTA COM IA",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        430
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ?? VALORES / PLANOS\n\nEsse bloco ? usado quando o cliente pergunta valor, plano, mensalidade ou pre?o. O bot n?o inventa valores em texto livre. Ele envia a arte valor.jpeg com a legenda oficial dos planos. Assim o pre?o fica sempre padronizado.\n\nCobre o node:\n- WhatsApp - enviar valor.jpeg",
+        "height": 650,
+        "width": 480,
+        "color": 2718207
+      },
+      "id": "note-valores-planos",
+      "name": "VALORES / PLANOS",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        430
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ?? TESTE / CONFIRMA??O\n\nEsse bloco cuida do pedido de teste. Como o teste dura apenas 1 hora, o bot primeiro confirma se o cliente consegue testar agora. S? depois disso ele registra o pedido e avisa Arthur para aprovar a cria??o do teste.\n\nCobre os nodes:\n- WhatsApp - confirmar teste agora\n- Supabase - aguardando teste agora\n- Supabase - solicitar aprova??o teste\n- WhatsApp - avisar Arthur teste",
+        "height": 650,
+        "width": 620,
+        "color": 13959168
+      },
+      "id": "note-teste-confirmacao",
+      "name": "TESTE / CONFIRMA??O",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1160,
+        430
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ? CRIA??O AUTOM?TICA DO TESTE\n\nEsse bloco fica logo abaixo do pedido de teste para deixar claro que ele pertence somente a esse caminho. Ele roda a automa??o no painel externo, tenta gerar usu?rio, senha e vencimento. Se conseguir, salva no Supabase e envia as credenciais ao cliente. Se falhar, n?o fala nada errado para o cliente e avisa Arthur.\n\nCredenciais devem conter:\n- provedor, quando existir\n- usu?rio\n- senha\n- vencimento\n\nCobre os nodes:\n- Arthur - aprovar teste\n- Tester - criar teste\n- Teste criado?\n- Supabase - salvar credenciais\n- Formatar credenciais\n- WhatsApp - enviar credenciais\n- WhatsApp - alertar Arthur erro teste",
+        "height": 880,
+        "width": 900,
+        "color": 4342338
+      },
+      "id": "note-criacao-teste",
+      "name": "CRIA??O AUTOM?TICA DO TESTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1160,
+        1240
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ?? A??ES MANUAIS / BLACK FRIDAY\n\nEsse bloco fica pr?ximo do Arthur porque depende de comando manual. O bot nunca deve mandar promo??o sozinho. Quando Arthur ativar, envia black.jpeg com a legenda oficial da campanha.\n\nCobre os nodes:\n- Arthur - Black Friday manual\n- WhatsApp - enviar black.jpeg",
+        "height": 660,
+        "width": 620,
+        "color": 12915042
+      },
+      "id": "note-campanhas-manuais",
+      "name": "CAMPANHAS MANUAIS",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        2320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ?? CONTROLE HUMANO / ARTHUR\n\nEsse bloco fica separado dos fluxos autom?ticos para mostrar que ? interven??o manual. Quando Arthur assume, o bot para de responder o cliente. Se Arthur devolver, o bot volta. Se Arthur n?o responder em 30 minutos quando for chamado, o bot pode retomar para n?o deixar cliente abandonado.\n\nCobre os nodes:\n- Arthur - assumir conversa\n- Supabase - pausar bot 30 min\n- Arthur - devolver conversa\n- Supabase - devolver ao bot",
+        "height": 660,
+        "width": 720,
+        "color": 7162945
+      },
+      "id": "note-controle-humano",
+      "name": "CONTROLE HUMANO / ARTHUR",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        2320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ? LOGS / SEGURAN?A\n\nEsse bloco fica no canto final do canvas como camada de prote??o e auditoria. Ele registra eventos importantes, erros, pausas e decis?es. Ajuda a entender o que aconteceu quando algo d? errado e protege o sistema para evitar mensagem errada, repeti??o de fluxo ou resposta ao cliente enquanto Arthur est? no controle.\n\nCobre os nodes:\n- Log - pausado para Arthur\n- qualquer node de erro/log existente",
+        "height": 520,
+        "width": 620,
+        "color": 12434877
+      },
+      "id": "note-logs-seguranca",
+      "name": "LOGS / SEGURAN?A",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        3100
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-incoming",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "incoming-webhook",
+      "name": "WhatsApp - entrada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1920,
+        0
+      ],
+      "webhookId": "whatsapp-incoming"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst phone = String(body.phone || body.from || '').replace(/\\D/g, '');\nconst text = String(body.message?.text || body.text || '').trim();\nif (!phone) throw new Error('Mensagem sem telefone normalizado.');\nreturn [{ json: {\n  phone,\n  jid: body.jid || '',\n  pushName: body.pushName || '',\n  text,\n  messageType: body.message?.type || 'text',\n  messageId: body.messageId || '',\n  receivedAt: new Date().toISOString()\n}}];"
+      },
+      "id": "normalize-incoming",
+      "name": "Normalizar entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$json.phone}}&select=*",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "supabase-find-contact",
+      "name": "Supabase - buscar contato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $node['Normalizar entrada'].json;\nconst contacts = Array.isArray($json) ? $json : ($json.body || []);\nconst contact = contacts[0] || null;\nconst text = String(source.text || '').toLowerCase();\nconst takeoverUntil = contact?.human_takeover_until ? new Date(contact.human_takeover_until) : null;\nlet route = 'ai_reply';\nif (!contact || !contact.initial_flow_sent_at) route = 'initial_flow';\nelse if (takeoverUntil && takeoverUntil > new Date()) route = 'human_paused';\nelse if (contact.state === 'waiting_test_confirmation' && /\\b(sim|pode|agora|ok|claro)\\b/i.test(text)) route = 'request_arthur_approval';\nelse if (/\\b(teste|testar|demo|acesso)\\b/i.test(text)) route = 'ask_test_time';\nelse if (/\\b(valor|preco|preco|plano|planos|quanto|mensal|mensalidade)\\b/i.test(text)) route = 'send_prices';\nreturn [{ json: { ...source, contact, route } }];"
+      },
+      "id": "route-decision",
+      "name": "Decidir rota segura",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.route}}",
+                    "rightValue": "initial_flow",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "fluxo inicial"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.route}}",
+                    "rightValue": "send_prices",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "precos"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.route}}",
+                    "rightValue": "ask_test_time",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pedir confirmacao teste"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.route}}",
+                    "rightValue": "request_arthur_approval",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "aprovar Arthur"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.route}}",
+                    "rightValue": "ai_reply",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IA"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.route}}",
+                    "rightValue": "human_paused",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pausado Arthur"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "route-switch",
+      "name": "Roteador",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { phone: $json.phone, jid: $json.jid, display_name: $json.pushName, state: 'initial_flow', initial_flow_sent_at: $now.toISO(), ai_enabled: false, last_customer_message: $json.text, last_customer_message_at: $now.toISO() } }}",
+        "options": {}
+      },
+      "id": "supabase-upsert-initial",
+      "name": "Supabase - marcar fluxo inicial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BOT_API_URL || $env.BOT_PUBLIC_URL}}/send/commands",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { to: $node['Decidir rota segura'].json.phone, commands: [ { type: 'presence', presence: 'recording', durationMs: Number($env.RECORDING_DELAY_SECONDS || 6) * 1000 }, { type: 'audio', fileName: $env.AUDIO_01 || 'apresentacao01.ogg', ptt: true }, { type: 'delay', durationMs: 900 }, { type: 'presence', presence: 'recording', durationMs: Number($env.RECORDING_DELAY_SECONDS || 6) * 1000 }, { type: 'audio', fileName: $env.AUDIO_02 || 'apresentacao02.ogg', ptt: true }, { type: 'delay', durationMs: 700 }, { type: 'image', fileName: $env.IMAGE_FEEDBACKS || 'feedbaks.jpeg', caption: 'Feedbacks oficiais Primeflix.' }, { type: 'delay', durationMs: 700 }, { type: 'audio', fileName: $env.AUDIO_03 || 'qualatv.ogg', ptt: true } ] } }}",
+        "options": {}
+      },
+      "id": "whatsapp-initial-flow",
+      "name": "WhatsApp - fluxo inicial oficial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$node['Decidir rota segura'].json.phone}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { state: 'ai_ready', ai_enabled: true, last_bot_message_at: $now.toISO() } }}",
+        "options": {}
+      },
+      "id": "supabase-enable-ai",
+      "name": "Supabase - liberar IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BOT_API_URL || $env.BOT_PUBLIC_URL}}/send/image",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { to: $json.phone, fileName: $env.IMAGE_VALORES || 'valor.jpeg', caption: '' } }}",
+        "options": {}
+      },
+      "id": "whatsapp-send-prices",
+      "name": "WhatsApp - enviar valor.jpeg",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BOT_API_URL || $env.BOT_PUBLIC_URL}}/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { to: $json.phone, text: 'Voce consegue testar agora? O teste dura 1 hora.' } }}",
+        "options": {}
+      },
+      "id": "whatsapp-ask-test-time",
+      "name": "WhatsApp - confirmar teste agora",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1060,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$node['Decidir rota segura'].json.phone}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { state: 'waiting_test_confirmation', last_bot_message_at: $now.toISO() } }}",
+        "options": {}
+      },
+      "id": "supabase-wait-test-confirmation",
+      "name": "Supabase - aguardando teste agora",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -800,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/test_requests",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { phone: $json.phone, contact_id: $json.contact?.id, customer_name: $json.pushName || $json.phone, status: 'awaiting_arthur_approval' } }}",
+        "options": {}
+      },
+      "id": "supabase-create-test-request",
+      "name": "Supabase - solicitar aprovacao teste",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1060,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BOT_API_URL || $env.BOT_PUBLIC_URL}}/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { to: $env.ARTHUR_PHONE, text: 'Primeflix: teste aguardando aprovacao. Cliente: ' + $node['Decidir rota segura'].json.phone + '. Aprove pelo painel/Lovable ou webhook manual antes de criar.' } }}",
+        "options": {}
+      },
+      "id": "whatsapp-notify-arthur-test",
+      "name": "WhatsApp - avisar Arthur teste",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -800,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.KIE_API_URL || 'https://api.kie.ai/v1/chat/completions'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.KIE_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { model: $env.KIE_MODEL, temperature: 0.2, messages: [ { role: 'system', content: 'Voce atende clientes da Primeflix pelo WhatsApp. Nunca invente preco, plano, prazo ou promocao. Se perguntarem preco/plano, nao responda valores: o fluxo envia valor.jpeg. Se pedirem teste, confirme se pode testar agora porque dura 1 hora. Black Friday so manual pelo Arthur. Seja curto e contextual.' }, { role: 'user', content: $json.text } ] } }}",
+        "options": {}
+      },
+      "id": "kie-ai-request",
+      "name": "KIE AI - Claude Haiku",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $node['Decidir rota segura'].json;\nconst text = String($json.choices?.[0]?.message?.content || $json.content || $json.response || '').trim();\nconst blocked = /(R\\$|black friday|promo|promocao|plano\\s+\\w+|\\b\\d+\\s*(reais|meses|dias)\\b)/i;\nconst safeText = text && !blocked.test(text) ? text : 'Vou verificar isso com o Arthur para te responder certinho.';\nreturn [{ json: { ...base, aiText: safeText, aiBlocked: text !== safeText } }];"
+      },
+      "id": "sanitize-ai",
+      "name": "Sanitizar resposta IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BOT_API_URL || $env.BOT_PUBLIC_URL}}/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { to: $json.phone, text: $json.aiText } }}",
+        "options": {}
+      },
+      "id": "whatsapp-send-ai",
+      "name": "WhatsApp - enviar IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/conversations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { phone: $json.phone, contact_id: $json.contact?.id, direction: 'internal', sender: 'system', message_type: 'state', body: 'Bot pausado: Arthur esta assumindo a conversa.', payload: $json } }}",
+        "options": {}
+      },
+      "id": "log-human-paused",
+      "name": "Log - pausado para Arthur",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1420,
+        3320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "primeflix/arthur/aprovar-teste",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "arthur-approve-test-webhook",
+      "name": "Arthur - aprovar teste",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1060,
+        1460
+      ],
+      "webhookId": "primeflix-arthur-approve-test"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.TESTER_URL || 'http://tester:3002'}}/tests",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { phone: ($json.body?.phone || $json.phone), customerName: ($json.body?.customerName || $json.body?.name || $json.name || $json.phone), requestId: ($json.body?.requestId || $json.requestId), approvedByArthur: true } }}",
+        "options": {}
+      },
+      "id": "tester-create-test",
+      "name": "Tester - criar teste",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -800,
+        1460
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.ok}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-test-ok",
+      "name": "Teste criado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -540,
+        1460
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/credentials",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { phone: $json.phone || $node['Arthur - aprovar teste'].json.body?.phone, provider: $json.provider, username: $json.username, password: $json.password, expires_at_text: $json.expiresAt, raw_payload: $json } }}",
+        "options": {}
+      },
+      "id": "supabase-save-credentials",
+      "name": "Supabase - salvar credenciais",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1060,
+        1660
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $node['Tester - criar teste'].json;\nconst phone = data.phone || $node['Arthur - aprovar teste'].json.body?.phone;\nconst lines = ['Seu teste de 1 hora esta pronto:'];\nif (data.provider) lines.push('Provedor: ' + data.provider);\nlines.push('Usuario: ' + data.username);\nlines.push('Senha: ' + data.password);\nlines.push('Vencimento: ' + data.expiresAt);\nreturn [{ json: { phone, text: lines.join('\\n') } }];"
+      },
+      "id": "format-credentials-message",
+      "name": "Formatar credenciais",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        1660
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BOT_API_URL || $env.BOT_PUBLIC_URL}}/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { to: $json.phone, text: $json.text } }}",
+        "options": {}
+      },
+      "id": "whatsapp-send-credentials",
+      "name": "WhatsApp - enviar credenciais",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -540,
+        1660
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BOT_API_URL || $env.BOT_PUBLIC_URL}}/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { to: $env.ARTHUR_PHONE, text: 'Primeflix: erro ao criar teste. Nada foi enviado ao cliente. Codigo: ' + ($json.code || 'sem_codigo') + '. Erro: ' + ($json.message || '') } }}",
+        "options": {}
+      },
+      "id": "whatsapp-alert-arthur-test-error",
+      "name": "WhatsApp - alertar Arthur erro teste",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -800,
+        1860
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "primeflix/arthur/black-friday",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "black-friday-webhook",
+      "name": "Arthur - Black Friday manual",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        620,
+        2540
+      ],
+      "webhookId": "primeflix-black-friday"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BOT_API_URL || $env.BOT_PUBLIC_URL}}/send/image",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { to: ($json.body?.phone || $json.phone), fileName: $env.IMAGE_BLACK || 'black.jpeg', caption: ($json.body?.caption || '') } }}",
+        "options": {}
+      },
+      "id": "whatsapp-send-black",
+      "name": "WhatsApp - enviar black.jpeg",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        2540
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "primeflix/arthur/assumir",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "takeover-webhook",
+      "name": "Arthur - assumir conversa",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        2540
+      ],
+      "webhookId": "primeflix-takeover"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$json.body?.phone || $json.phone}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { state: 'human_takeover', ai_enabled: false, human_takeover_by: 'arthur', human_takeover_until: $now.plus({ minutes: 30 }).toISO() } }}",
+        "options": {}
+      },
+      "id": "supabase-takeover",
+      "name": "Supabase - pausar bot 30 min",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -60,
+        2540
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "primeflix/arthur/devolver",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "return-webhook",
+      "name": "Arthur - devolver conversa",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        2740
+      ],
+      "webhookId": "primeflix-return"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$json.body?.phone || $json.phone}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { state: 'ai_ready', ai_enabled: true, human_takeover_by: null, human_takeover_until: null } }}",
+        "options": {}
+      },
+      "id": "supabase-return-bot",
+      "name": "Supabase - devolver ao bot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -60,
+        2740
+      ]
+    }
+  ],
+  "connections": {
+    "WhatsApp - entrada": {
+      "main": [
+        [
+          {
+            "node": "Normalizar entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar entrada": {
+      "main": [
+        [
+          {
+            "node": "Supabase - buscar contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - buscar contato": {
+      "main": [
+        [
+          {
+            "node": "Decidir rota segura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir rota segura": {
+      "main": [
+        [
+          {
+            "node": "Roteador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roteador": {
+      "main": [
+        [
+          {
+            "node": "Supabase - marcar fluxo inicial",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WhatsApp - enviar valor.jpeg",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WhatsApp - confirmar teste agora",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase - solicitar aprovacao teste",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "KIE AI - Claude Haiku",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log - pausado para Arthur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - marcar fluxo inicial": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp - fluxo inicial oficial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp - fluxo inicial oficial": {
+      "main": [
+        [
+          {
+            "node": "Supabase - liberar IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp - confirmar teste agora": {
+      "main": [
+        [
+          {
+            "node": "Supabase - aguardando teste agora",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - solicitar aprovacao teste": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp - avisar Arthur teste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KIE AI - Claude Haiku": {
+      "main": [
+        [
+          {
+            "node": "Sanitizar resposta IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitizar resposta IA": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp - enviar IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arthur - aprovar teste": {
+      "main": [
+        [
+          {
+            "node": "Tester - criar teste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tester - criar teste": {
+      "main": [
+        [
+          {
+            "node": "Teste criado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teste criado?": {
+      "main": [
+        [
+          {
+            "node": "Supabase - salvar credenciais",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WhatsApp - alertar Arthur erro teste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - salvar credenciais": {
+      "main": [
+        [
+          {
+            "node": "Formatar credenciais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar credenciais": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp - enviar credenciais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arthur - Black Friday manual": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp - enviar black.jpeg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arthur - assumir conversa": {
+      "main": [
+        [
+          {
+            "node": "Supabase - pausar bot 30 min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arthur - devolver conversa": {
+      "main": [
+        [
+          {
+            "node": "Supabase - devolver ao bot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-04-29T00:00:00.000Z",
+  "versionId": "primeflix-atendimento-principal"
+}

@@ -1,0 +1,67 @@
+name: primeflix-automacao
+
+services:
+  whatsapp-bot:
+    build:
+      context: ./whatsapp-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${PORT:-3333}:3333"
+    volumes:
+      - whatsapp_session:/app/sessions
+      - ./material:/app/material:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3333/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  tester:
+    build:
+      context: ./tester
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${TESTER_PORT:-3002}:3002"
+    volumes:
+      - tester_storage:/app/storage
+      - tester_errors:/app/errors
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - N8N_HOST=${N8N_HOST:-0.0.0.0}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Sao_Paulo}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL}
+      - BOT_API_URL=http://whatsapp-bot:3333
+      - TESTER_URL=http://tester:3002
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n:/files/n8n:ro
+    depends_on:
+      whatsapp-bot:
+        condition: service_started
+      tester:
+        condition: service_started
+
+volumes:
+  n8n_data:
+  whatsapp_session:
+  tester_storage:
+  tester_errors:

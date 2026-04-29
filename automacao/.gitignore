@@ -1,0 +1,14 @@
+.env
+node_modules/
+npm-debug.log
+
+whatsapp-bot/session/*
+!whatsapp-bot/session/.gitkeep
+sessions/
+
+tester/storage/*
+!tester/storage/.gitkeep
+tester/errors/*
+!tester/errors/.gitkeep
+
+*.log

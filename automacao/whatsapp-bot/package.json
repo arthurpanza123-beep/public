@@ -1,0 +1,20 @@
+{
+  "name": "primeflix-whatsapp-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Transporte WhatsApp do Primeflix Bot.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "check": "node --check src/index.js && node --check src/server.js && node --check src/whatsapp.js && node --check src/config.js && node --check src/phone.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.18",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "primeflix-tester",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Criador seguro de testes de 1 hora no painel externo.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "login": "node src/login.js",
+    "check": "node --check src/index.js && node --check src/server.js && node --check src/panelTester.js && node --check src/config.js && node --check src/login.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pino": "^9.6.0",
+    "playwright": "^1.49.1"
+  }
+}
