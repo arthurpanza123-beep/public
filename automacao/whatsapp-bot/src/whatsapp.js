@@ -13,6 +13,7 @@ const {
 const config = require('./config');
 const logger = require('./logger');
 const { normalizePhone, toJid } = require('./phone');
+const botService = require('./botService');
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -155,33 +156,26 @@ class WhatsAppClient {
 
     for (const message of event.messages) {
       try {
-        await this.forwardIncomingMessage(message);
+        await this.processIncomingMessage(message);
       } catch (error) {
         logger.error({ err: error, messageId: message?.key?.id }, 'Falha ao processar mensagem recebida.');
       }
     }
   }
 
-  async forwardIncomingMessage(message) {
+  buildIncomingPayload(message) {
     if (!message?.message || !message.key?.remoteJid) return;
     const jid = message.key.remoteJid;
     const isGroup = jid.endsWith('@g.us');
     const fromMe = Boolean(message.key.fromMe);
 
-    if (isGroup && config.ignoreGroups) return;
-    if (fromMe && !config.forwardFromMe) return;
-    if (!config.n8nWebhookUrl) {
-      logger.warn('N8N_WEBHOOK_URL nao configurado. Mensagem recebida nao foi encaminhada.');
-      return;
-    }
-
     const extracted = extractIncomingMessage(message.message);
-    const payload = {
+    return {
       source: 'whatsapp-bot',
       event: 'message.received',
       messageId: message.key.id,
       jid,
-      phone: normalizePhone(jid),
+      phone: normalizePhone(message.key.senderPn) || normalizePhone(jid),
       fromMe,
       isGroup,
       pushName: message.pushName || '',
@@ -191,6 +185,30 @@ class WhatsAppClient {
         key: message.key
       }
     };
+  }
+
+  async processIncomingMessage(message) {
+    const payload = this.buildIncomingPayload(message);
+    if (!payload) return;
+
+    if (payload.isGroup && config.ignoreGroups) return;
+    if (payload.fromMe && !config.forwardFromMe) return;
+
+    if (config.useN8n) {
+      await this.forwardIncomingMessage(payload).catch((error) => {
+        logger.error({ err: error, phone: payload.phone }, 'Falha ao encaminhar evento opcional ao n8n.');
+      });
+      return;
+    }
+
+    await botService.processIncomingMessage(payload, this);
+  }
+
+  async forwardIncomingMessage(payload) {
+    if (!config.n8nWebhookUrl) {
+      logger.warn('USE_N8N=true, mas N8N_WEBHOOK_URL nao esta configurado.');
+      return;
+    }
 
     const headers = { 'X-primeflix-Source': 'whatsapp-bot' };
     if (config.n8nWebhookToken) {
@@ -202,7 +220,7 @@ class WhatsAppClient {
       headers
     });
 
-    logger.info({ phone: payload.phone, type: extracted.type }, 'Mensagem encaminhada ao n8n.');
+    logger.info({ phone: payload.phone, type: payload.message?.type }, 'Mensagem encaminhada ao n8n.');
   }
 
   requireConnection() {

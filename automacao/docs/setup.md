@@ -7,7 +7,8 @@ Copie `.env.example` para `.env`.
 Preencha:
 
 - `BOT_PUBLIC_URL`: URL publica do bot/API Node.js. Localmente pode ficar `http://localhost:3333`.
-- `N8N_WEBHOOK_URL`: URL de producao do webhook `whatsapp-incoming` no n8n.
+- `USE_N8N`: deixe `false` para o atendimento principal rodar direto no WhatsApp Bot.
+- `N8N_WEBHOOK_URL`: opcional, apenas se `USE_N8N=true` para automacoes futuras.
 - `SUPABASE_SERVICE_KEY`: service role nova do Supabase. Nunca coloque essa chave no frontend.
 - `KIE_API_KEY`: chave privada da KIE AI.
 - `ARTHUR_PHONE`: telefone do Arthur com DDI e DDD, somente numeros.
@@ -57,18 +58,15 @@ No Supabase, abra o SQL Editor e execute `supabase/schema.sql`.
 
 Depois confirme que existem:
 
-- `contacts`
-- `conversations`
-- `test_requests`
-- `credentials`
-- `follow_ups`
-- `v_contacts_panel`
+- `customers`
+- `messages`
+- `v_customers_panel`
 
-Use `SUPABASE_ANON_KEY` no Lovable/frontend. Use `SUPABASE_SERVICE_KEY` somente no n8n e no servidor.
+Use `SUPABASE_ANON_KEY` no Lovable/frontend. Use `SUPABASE_SERVICE_KEY` somente no servidor e em automacoes privadas.
 
-## 5. Importar workflow n8n
+## 5. n8n opcional
 
-Importe `n8n/primeflix-workflow.json`.
+O atendimento principal nao depende mais do n8n. Para automacoes futuras, importe `n8n/primeflix-workflow.json`.
 
 O workflow deve aparecer como:
 
@@ -98,7 +96,7 @@ KIE_API_KEY=COLE_AQUI_SUA_KIE_API_KEY
 KIE_MODEL=claude-haiku-4-5
 ```
 
-O prompt do workflow proibe a IA de inventar preco, plano, prazo ou promocao.
+O prompt do `whatsapp-bot` proibe a IA de inventar preco, plano, prazo ou promocao.
 
 ## 7. Testar WhatsApp
 
@@ -120,7 +118,7 @@ Fluxo minimo:
 2. Escaneie o QR.
 3. Chame `GET /health`.
 4. Envie uma mensagem de outro telefone.
-5. Confira se o n8n recebeu no webhook `whatsapp-incoming`.
+5. Confira no Supabase se `customers` e `messages` receberam os registros.
 
 ## 8. Testar criacao de teste
 

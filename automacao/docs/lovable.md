@@ -29,11 +29,9 @@ Nunca coloque `SUPABASE_SERVICE_KEY` no Lovable publico.
 
 Use:
 
-- `v_contacts_panel`
-- `conversations`
-- `test_requests`
-- `credentials`
-- `follow_ups`
+- `v_customers_panel`
+- `customers`
+- `messages`
 
 ## Webhooks manuais
 

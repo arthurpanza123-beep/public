@@ -3,7 +3,7 @@
 ## Checklist diario
 
 - WhatsApp conectado em `GET /health`.
-- n8n ativo com o workflow `Primeflix Bot - Atendimento Principal`.
+- WhatsApp Bot ativo e conectado. O n8n e opcional.
 - Supabase respondendo com `SUPABASE_URL`.
 - KIE API com chave valida.
 - Arquivos oficiais presentes em `material/`.
@@ -18,7 +18,7 @@ O bot pausa por 30 minutos. Se Arthur nao responder e o cliente voltar depois de
 
 1. Bot pergunta se o cliente pode testar agora.
 2. Cliente confirma.
-3. n8n avisa Arthur.
+3. O bot registra o pedido no Supabase e pode avisar Arthur quando a aprovacao manual estiver configurada.
 4. Arthur aprova.
 5. Playwright cria o teste.
 6. Cliente recebe provedor quando existir, usuario, senha e vencimento.

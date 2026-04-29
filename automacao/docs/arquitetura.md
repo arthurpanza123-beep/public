@@ -2,8 +2,8 @@
 
 ## Papel de cada parte
 
-- WhatsApp Bot: transporte. Recebe e envia mensagens, simula digitando/gravando e entrega tudo ao n8n.
-- n8n: orquestracao visual e regras do atendimento.
+- WhatsApp Bot: cérebro principal. Recebe mensagens, normaliza telefone/nome/texto, grava no Supabase, envia fluxo inicial, chama IA e responde no WhatsApp.
+- n8n: opcional para automacoes futuras, fora do caminho principal do atendimento.
 - Supabase: memoria do atendimento, contatos, conversas, pedidos de teste, credenciais e follow-ups.
 - Tester Playwright: cria teste de 1 hora no painel externo sem API.
 - KIE AI Claude Haiku: responde somente depois do fluxo inicial e com guardrails.
@@ -12,16 +12,11 @@
 ## Fluxo principal
 
 1. Cliente manda qualquer primeira mensagem.
-2. WhatsApp Bot encaminha ao n8n.
-3. n8n consulta Supabase pelo telefone.
-4. Se nao existir contato ou se nao tiver `initial_flow_sent_at`, dispara o fluxo inicial oficial.
-5. Depois do fluxo inicial, n8n marca `ai_enabled=true`.
-6. Proximas mensagens passam por roteamento seguro:
-   - preco/plano: envia `valor.jpeg`.
-   - teste: pergunta se pode testar agora.
-   - confirmacao de teste: avisa Arthur e espera aprovacao.
-   - conversa assumida por Arthur: bot fica pausado.
-   - demais casos: chama KIE AI com guardrails.
+2. WhatsApp Bot cria/atualiza `customers` pelo telefone.
+3. WhatsApp Bot salva a mensagem recebida em `messages`.
+4. Se `flow_initial_sent=false`, envia o fluxo inicial oficial.
+5. Depois do fluxo inicial, marca `flow_initial_sent=true`.
+6. Nas proximas mensagens, chama a KIE AI e salva a resposta enviada.
 
 ## Principio de seguranca
 

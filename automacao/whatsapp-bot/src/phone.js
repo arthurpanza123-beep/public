@@ -10,7 +10,7 @@ function normalizePhone(value) {
 function toJid(value) {
   if (!value) throw new Error('Destino WhatsApp ausente.');
   const raw = String(value).trim();
-  if (raw.endsWith('@s.whatsapp.net') || raw.endsWith('@g.us')) return raw;
+  if (raw.endsWith('@s.whatsapp.net') || raw.endsWith('@g.us') || raw.endsWith('@lid')) return raw;
   const phone = normalizePhone(raw);
   if (!phone) throw new Error('Destino WhatsApp invalido.');
   return `${phone}@s.whatsapp.net`;

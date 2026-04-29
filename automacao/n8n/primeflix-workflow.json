@@ -19,9 +19,9 @@
     },
     {
       "parameters": {
-        "content": "# ?? CLIENTE / SUPABASE\n\nEsse bloco consulta o Supabase para saber se esse n?mero j? existe, se j? recebeu o fluxo inicial, qual ? o status atual do atendimento e se o bot est? pausado. Essa etapa evita repetir o fluxo inicial e impede o bot de responder quando Arthur estiver no controle.\n\nCobre os nodes:\n- Supabase - buscar contato\n- Decidir rota segura",
-        "height": 500,
-        "width": 620,
+        "content": "# ?? CLIENTE / SUPABASE\\n\\nEsse bloco cria ou atualiza automaticamente o cliente em customers pelo telefone normalizado, salva toda mensagem recebida em messages com o id retornado pelo upsert e depois busca o registro criado/encontrado antes de qualquer resposta. Assim a primeira mensagem cria o cliente, fica registrada no hist?rico e segue para o roteador sem IF manual complicado.\\n\\nCobre os nodes:\\n- Supabase - cliente da upsert\\n- Supabase - buscar contato\\n- Supabase - salvar mensagem recebida\\n- Decidir rota segura",
+        "height": 560,
+        "width": 1280,
         "color": 51283
       },
       "id": "note-cliente-supabase",
@@ -29,8 +29,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1340,
-        -250
+        -1600,
+        -300
       ]
     },
     {
@@ -196,7 +196,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body || $json;\nconst phone = String(body.phone || body.from || '').replace(/\\D/g, '');\nconst text = String(body.message?.text || body.text || '').trim();\nif (!phone) throw new Error('Mensagem sem telefone normalizado.');\nreturn [{ json: {\n  phone,\n  jid: body.jid || '',\n  pushName: body.pushName || '',\n  text,\n  messageType: body.message?.type || 'text',\n  messageId: body.messageId || '',\n  receivedAt: new Date().toISOString()\n}}];"
+        "jsCode": "const source = $json.body || $json;\nconst cleanPhone = (value) => String(value || '')\n  .replace('@s.whatsapp.net', '')\n  .replace('@lid', '')\n  .replace(/\\D/g, '');\n\nconst telefone = cleanPhone(source.phone)\n  || cleanPhone(source.raw?.key?.senderPn)\n  || cleanPhone(source.jid);\n\nif (!telefone) throw new Error('Mensagem sem telefone normalizado.');\n\nconst Texto = source.Texto || '';\n\nreturn [{ json: {\n  telefone,\n  jid: source.jid || '',\n  pushName: source.pushName || 'Cliente',\n  Texto,\n  texto: Texto,\n  text: Texto,\n  messageType: source.message?.type || 'text',\n  messageId: source.messageId || ''\n}}];"
       },
       "id": "normalize-incoming",
       "name": "Normalizar entrada",
@@ -209,8 +209,8 @@
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$json.phone}}&select=*",
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/customers?on_conflict=phone",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -221,6 +221,53 @@
             {
               "name": "Authorization",
               "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { phone: $json.telefone, name: $json.pushName || 'Cliente', status: 'bot' } }}",
+        "options": {}
+      },
+      "id": "supabase-upsert-customer",
+      "name": "Supabase - cliente da upsert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1510,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/customers?id=eq.{{$node['Supabase - cliente da upsert'].json[0]?.id || $node['Supabase - cliente da upsert'].json.id}}&select=*",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
             }
           ]
         },
@@ -231,20 +278,59 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1240,
+        -1080,
         0
       ]
     },
     {
       "parameters": {
-        "jsCode": "const source = $node['Normalizar entrada'].json;\nconst contacts = Array.isArray($json) ? $json : ($json.body || []);\nconst contact = contacts[0] || null;\nconst text = String(source.text || '').toLowerCase();\nconst takeoverUntil = contact?.human_takeover_until ? new Date(contact.human_takeover_until) : null;\nlet route = 'ai_reply';\nif (!contact || !contact.initial_flow_sent_at) route = 'initial_flow';\nelse if (takeoverUntil && takeoverUntil > new Date()) route = 'human_paused';\nelse if (contact.state === 'waiting_test_confirmation' && /\\b(sim|pode|agora|ok|claro)\\b/i.test(text)) route = 'request_arthur_approval';\nelse if (/\\b(teste|testar|demo|acesso)\\b/i.test(text)) route = 'ask_test_time';\nelse if (/\\b(valor|preco|preco|plano|planos|quanto|mensal|mensalidade)\\b/i.test(text)) route = 'send_prices';\nreturn [{ json: { ...source, contact, route } }];"
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { customer_id: $node['Supabase - cliente da upsert'].json[0].id, direction: 'in', body: $json.Texto, sent_by: 'client' } }}",
+        "options": {}
+      },
+      "id": "supabase-save-incoming-message",
+      "name": "Supabase - salvar mensagem recebida",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $node['Normalizar entrada'].json;\nconst response = $node['Supabase - buscar contato'].json;\nconst customers = Array.isArray(response) ? response : (response.body || []);\nconst customer = customers[0] || {};\nconst texto = String(source.texto || '').toLowerCase();\nconst status = String(customer.status || 'new');\nconst initialNotSent = !customer.status || status === 'new' || status === 'bot';\nlet route = 'ai_reply';\n\nif (status === 'human_takeover') route = 'human_paused';\nelse if (status === 'waiting_test_confirmation' && /\\b(sim|pode|agora|ok|claro)\\b/i.test(texto)) route = 'request_arthur_approval';\nelse if (initialNotSent) route = 'initial_flow';\nelse if (/\\b(teste|testar|demo|acesso)\\b/i.test(texto)) route = 'ask_test_time';\nelse if (/\\b(valor|preco|pre?o|plano|planos|quanto|mensal|mensalidade)\\b/i.test(texto)) route = 'send_prices';\n\nreturn [{ json: { ...source, customer, route } }];"
       },
       "id": "route-decision",
       "name": "Decidir rota segura",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -980,
+        -430,
         0
       ]
     },
@@ -369,8 +455,8 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts",
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/customers?phone=eq.{{$node['Decidir rota segura'].json.telefone}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -383,14 +469,18 @@
               "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
             },
             {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
               "name": "Prefer",
-              "value": "resolution=merge-duplicates,return=representation"
+              "value": "resolution=merge-duplicates"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { phone: $json.phone, jid: $json.jid, display_name: $json.pushName, state: 'initial_flow', initial_flow_sent_at: $now.toISO(), ai_enabled: false, last_customer_message: $json.text, last_customer_message_at: $now.toISO() } }}",
+        "jsonBody": "={{ { status: 'initial_flow_sent', last_message_at: $now.toISO() } }}",
         "options": {}
       },
       "id": "supabase-upsert-initial",
@@ -412,7 +502,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { to: $node['Decidir rota segura'].json.phone, commands: [ { type: 'presence', presence: 'recording', durationMs: Number($env.RECORDING_DELAY_SECONDS || 6) * 1000 }, { type: 'audio', fileName: $env.AUDIO_01 || 'apresentacao01.ogg', ptt: true }, { type: 'delay', durationMs: 900 }, { type: 'presence', presence: 'recording', durationMs: Number($env.RECORDING_DELAY_SECONDS || 6) * 1000 }, { type: 'audio', fileName: $env.AUDIO_02 || 'apresentacao02.ogg', ptt: true }, { type: 'delay', durationMs: 700 }, { type: 'image', fileName: $env.IMAGE_FEEDBACKS || 'feedbaks.jpeg', caption: 'Feedbacks oficiais Primeflix.' }, { type: 'delay', durationMs: 700 }, { type: 'audio', fileName: $env.AUDIO_03 || 'qualatv.ogg', ptt: true } ] } }}",
+        "jsonBody": "={{ { to: $node['Decidir rota segura'].json.telefone, commands: [ { type: 'presence', presence: 'recording', durationMs: Number($env.RECORDING_DELAY_SECONDS || 6) * 1000 }, { type: 'audio', fileName: $env.AUDIO_01 || 'apresentacao01.ogg', ptt: true }, { type: 'delay', durationMs: 900 }, { type: 'presence', presence: 'recording', durationMs: Number($env.RECORDING_DELAY_SECONDS || 6) * 1000 }, { type: 'audio', fileName: $env.AUDIO_02 || 'apresentacao02.ogg', ptt: true }, { type: 'delay', durationMs: 700 }, { type: 'image', fileName: $env.IMAGE_FEEDBACKS || 'feedbaks.jpeg', caption: 'Feedbacks oficiais Primeflix.' }, { type: 'delay', durationMs: 700 }, { type: 'audio', fileName: $env.AUDIO_03 || 'qualatv.ogg', ptt: true } ] } }}",
         "options": {}
       },
       "id": "whatsapp-initial-flow",
@@ -427,7 +517,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$node['Decidir rota segura'].json.phone}}",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/customers?phone=eq.{{$node['Decidir rota segura'].json.telefone}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -440,14 +530,18 @@
               "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
             },
             {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
               "name": "Prefer",
-              "value": "return=minimal"
+              "value": "resolution=merge-duplicates"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { state: 'ai_ready', ai_enabled: true, last_bot_message_at: $now.toISO() } }}",
+        "jsonBody": "={{ { status: 'ai_ready', last_message_at: $now.toISO() } }}",
         "options": {}
       },
       "id": "supabase-enable-ai",
@@ -469,7 +563,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { to: $json.phone, fileName: $env.IMAGE_VALORES || 'valor.jpeg', caption: '' } }}",
+        "jsonBody": "={{ { to: $json.telefone, fileName: $env.IMAGE_VALORES || 'valor.jpeg', caption: '' } }}",
         "options": {}
       },
       "id": "whatsapp-send-prices",
@@ -491,7 +585,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { to: $json.phone, text: 'Voce consegue testar agora? O teste dura 1 hora.' } }}",
+        "jsonBody": "={{ { to: $json.telefone, text: 'Voce consegue testar agora? O teste dura 1 hora.' } }}",
         "options": {}
       },
       "id": "whatsapp-ask-test-time",
@@ -506,7 +600,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$node['Decidir rota segura'].json.phone}}",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/customers?phone=eq.{{$node['Decidir rota segura'].json.telefone}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -519,14 +613,18 @@
               "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
             },
             {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
               "name": "Prefer",
-              "value": "return=minimal"
+              "value": "resolution=merge-duplicates"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { state: 'waiting_test_confirmation', last_bot_message_at: $now.toISO() } }}",
+        "jsonBody": "={{ { status: 'waiting_test_confirmation', last_message_at: $now.toISO() } }}",
         "options": {}
       },
       "id": "supabase-wait-test-confirmation",
@@ -540,8 +638,8 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/test_requests",
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/customers?phone=eq.{{$node['Decidir rota segura'].json.telefone}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -554,14 +652,18 @@
               "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
             },
             {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
               "name": "Prefer",
-              "value": "return=representation"
+              "value": "resolution=merge-duplicates"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { phone: $json.phone, contact_id: $json.contact?.id, customer_name: $json.pushName || $json.phone, status: 'awaiting_arthur_approval' } }}",
+        "jsonBody": "={{ { status: 'awaiting_arthur_approval', last_message_at: $now.toISO() } }}",
         "options": {}
       },
       "id": "supabase-create-test-request",
@@ -583,7 +685,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { to: $env.ARTHUR_PHONE, text: 'Primeflix: teste aguardando aprovacao. Cliente: ' + $node['Decidir rota segura'].json.phone + '. Aprove pelo painel/Lovable ou webhook manual antes de criar.' } }}",
+        "jsonBody": "={{ { to: $env.ARTHUR_PHONE, text: 'Primeflix: teste aguardando aprovacao. Cliente: ' + $node['Decidir rota segura'].json.telefone + '. Aprove pelo painel/Lovable ou webhook manual antes de criar.' } }}",
         "options": {}
       },
       "id": "whatsapp-notify-arthur-test",
@@ -614,7 +716,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $env.KIE_MODEL, temperature: 0.2, messages: [ { role: 'system', content: 'Voce atende clientes da Primeflix pelo WhatsApp. Nunca invente preco, plano, prazo ou promocao. Se perguntarem preco/plano, nao responda valores: o fluxo envia valor.jpeg. Se pedirem teste, confirme se pode testar agora porque dura 1 hora. Black Friday so manual pelo Arthur. Seja curto e contextual.' }, { role: 'user', content: $json.text } ] } }}",
+        "jsonBody": "={{ { model: $env.KIE_MODEL, temperature: 0.2, messages: [ { role: 'system', content: 'Voce atende clientes da Primeflix pelo WhatsApp. Nunca invente preco, plano, prazo ou promocao. Se perguntarem preco/plano, nao responda valores: o fluxo envia valor.jpeg. Se pedirem teste, confirme se pode testar agora porque dura 1 hora. Black Friday so manual pelo Arthur. Seja curto e contextual.' }, { role: 'user', content: $json.texto } ] } }}",
         "options": {}
       },
       "id": "kie-ai-request",
@@ -649,7 +751,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { to: $json.phone, text: $json.aiText } }}",
+        "jsonBody": "={{ { to: $json.telefone, text: $json.aiText } }}",
         "options": {}
       },
       "id": "whatsapp-send-ai",
@@ -664,7 +766,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/conversations",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/messages",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -675,12 +777,20 @@
             {
               "name": "Authorization",
               "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { phone: $json.phone, contact_id: $json.contact?.id, direction: 'internal', sender: 'system', message_type: 'state', body: 'Bot pausado: Arthur esta assumindo a conversa.', payload: $json } }}",
+        "jsonBody": "={{ { customer_id: $json.customer?.id, direction: 'internal', body: 'Bot pausado: Arthur esta assumindo a conversa.', media_url: null, sent_by: 'system', pending_send: false } }}",
         "options": {}
       },
       "id": "log-human-paused",
@@ -719,7 +829,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { phone: ($json.body?.phone || $json.phone), customerName: ($json.body?.customerName || $json.body?.name || $json.name || $json.phone), requestId: ($json.body?.requestId || $json.requestId), approvedByArthur: true } }}",
+        "jsonBody": "={{ { phone: ($json.body?.telefone || $json.telefone), customerName: ($json.body?.customerName || $json.body?.name || $json.name || $json.body?.telefone || $json.telefone), requestId: ($json.body?.requestId || $json.requestId), approvedByArthur: true } }}",
         "options": {}
       },
       "id": "tester-create-test",
@@ -754,7 +864,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/credentials",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/messages",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -765,12 +875,20 @@
             {
               "name": "Authorization",
               "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { phone: $json.phone || $node['Arthur - aprovar teste'].json.body?.phone, provider: $json.provider, username: $json.username, password: $json.password, expires_at_text: $json.expiresAt, raw_payload: $json } }}",
+        "jsonBody": "={{ { customer_id: ($json.customer_id || $json.customer?.id || $node['Arthur - aprovar teste'].json.body?.customer_id || null), direction: 'outbound', body: ['Teste criado com sucesso.', $json.provider ? 'Provedor: ' + $json.provider : '', 'Usuario: ' + $json.username, 'Senha: ' + $json.password, 'Vencimento: ' + $json.expiresAt].filter(Boolean).join('\\n'), media_url: null, sent_by: 'bot', pending_send: false } }}",
         "options": {}
       },
       "id": "supabase-save-credentials",
@@ -784,7 +902,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $node['Tester - criar teste'].json;\nconst phone = data.phone || $node['Arthur - aprovar teste'].json.body?.phone;\nconst lines = ['Seu teste de 1 hora esta pronto:'];\nif (data.provider) lines.push('Provedor: ' + data.provider);\nlines.push('Usuario: ' + data.username);\nlines.push('Senha: ' + data.password);\nlines.push('Vencimento: ' + data.expiresAt);\nreturn [{ json: { phone, text: lines.join('\\n') } }];"
+        "jsCode": "const data = $node['Tester - criar teste'].json;\nconst telefone = data.telefone || data.phone || $node['Arthur - aprovar teste'].json.body?.telefone;\nconst lines = ['Seu teste de 1 hora esta pronto:'];\nif (data.provider) lines.push('Provedor: ' + data.provider);\nlines.push('Usuario: ' + data.username);\nlines.push('Senha: ' + data.password);\nlines.push('Vencimento: ' + data.expiresAt);\nreturn [{ json: { telefone, text: lines.join('\\n') } }];"
       },
       "id": "format-credentials-message",
       "name": "Formatar credenciais",
@@ -805,7 +923,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { to: $json.phone, text: $json.text } }}",
+        "jsonBody": "={{ { to: $json.telefone, text: $json.text } }}",
         "options": {}
       },
       "id": "whatsapp-send-credentials",
@@ -866,7 +984,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { to: ($json.body?.phone || $json.phone), fileName: $env.IMAGE_BLACK || 'black.jpeg', caption: ($json.body?.caption || '') } }}",
+        "jsonBody": "={{ { to: ($json.body?.telefone || $json.telefone), fileName: $env.IMAGE_BLACK || 'black.jpeg', caption: ($json.body?.caption || '') } }}",
         "options": {}
       },
       "id": "whatsapp-send-black",
@@ -898,7 +1016,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$json.body?.phone || $json.phone}}",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/customers?phone=eq.{{$json.body?.telefone || $json.telefone}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -911,14 +1029,18 @@
               "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
             },
             {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
               "name": "Prefer",
-              "value": "return=minimal"
+              "value": "resolution=merge-duplicates"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { state: 'human_takeover', ai_enabled: false, human_takeover_by: 'arthur', human_takeover_until: $now.plus({ minutes: 30 }).toISO() } }}",
+        "jsonBody": "={{ { status: 'human_takeover', last_message_at: $now.toISO() } }}",
         "options": {}
       },
       "id": "supabase-takeover",
@@ -950,7 +1072,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/contacts?phone=eq.{{$json.body?.phone || $json.phone}}",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/customers?phone=eq.{{$json.body?.telefone || $json.telefone}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -963,14 +1085,18 @@
               "value": "=Bearer {{$env.SUPABASE_SERVICE_KEY}}"
             },
             {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
               "name": "Prefer",
-              "value": "return=minimal"
+              "value": "resolution=merge-duplicates"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { state: 'ai_ready', ai_enabled: true, human_takeover_by: null, human_takeover_until: null } }}",
+        "jsonBody": "={{ { status: 'ai_ready', last_message_at: $now.toISO() } }}",
         "options": {}
       },
       "id": "supabase-return-bot",
@@ -999,7 +1125,7 @@
       "main": [
         [
           {
-            "node": "Supabase - buscar contato",
+            "node": "Supabase - cliente da upsert",
             "type": "main",
             "index": 0
           }
@@ -1229,6 +1355,28 @@
         [
           {
             "node": "Supabase - devolver ao bot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - salvar mensagem recebida": {
+      "main": [
+        [
+          {
+            "node": "Supabase - buscar contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - cliente da upsert": {
+      "main": [
+        [
+          {
+            "node": "Supabase - salvar mensagem recebida",
             "type": "main",
             "index": 0
           }

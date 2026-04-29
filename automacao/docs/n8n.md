@@ -1,4 +1,6 @@
-# n8n
+# n8n opcional
+
+O atendimento principal agora roda dentro do `whatsapp-bot`. Use este workflow apenas para automacoes futuras ou integrações auxiliares.
 
 Workflow: `n8n/primeflix-workflow.json`.
 
@@ -16,7 +18,7 @@ Use:
 /webhook/whatsapp-incoming
 ```
 
-Essa URL deve ser colocada em `N8N_WEBHOOK_URL` no `.env` do WhatsApp Bot.
+Essa URL so deve ser colocada em `N8N_WEBHOOK_URL` se `USE_N8N=true`.
 
 ## Variaveis obrigatorias no n8n
 
