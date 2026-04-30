@@ -85,17 +85,88 @@ create table if not exists public.bot_events (
 alter table public.bot_events
   add column if not exists payload jsonb not null default '{}'::jsonb;
 
+create table if not exists public.knowledge_suggestions (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references public.customers(id) on delete set null,
+  phone text,
+  question text not null,
+  suggested_answer text,
+  final_answer text,
+  category text,
+  status text not null default 'pending',
+  source text default 'bot',
+  exported_at timestamptz,
+  created_at timestamptz not null default now(),
+  approved_at timestamptz
+);
+
+alter table public.knowledge_suggestions
+  add column if not exists customer_id uuid references public.customers(id) on delete set null;
+
+alter table public.knowledge_suggestions
+  add column if not exists phone text;
+
+alter table public.knowledge_suggestions
+  add column if not exists question text;
+
+alter table public.knowledge_suggestions
+  add column if not exists suggested_answer text;
+
+alter table public.knowledge_suggestions
+  add column if not exists final_answer text;
+
+alter table public.knowledge_suggestions
+  add column if not exists category text;
+
+alter table public.knowledge_suggestions
+  add column if not exists status text not null default 'pending';
+
+alter table public.knowledge_suggestions
+  add column if not exists source text default 'bot';
+
+alter table public.knowledge_suggestions
+  add column if not exists exported_at timestamptz;
+
+alter table public.knowledge_suggestions
+  add column if not exists approved_at timestamptz;
+
 create index if not exists customers_phone_idx on public.customers(phone);
 create index if not exists customers_last_message_at_idx on public.customers(last_message_at desc);
 create index if not exists messages_customer_created_idx on public.messages(customer_id, created_at desc);
 create index if not exists learned_answers_approved_idx on public.learned_answers(approved, created_at desc);
 create index if not exists bot_events_customer_created_idx on public.bot_events(customer_id, created_at desc);
 create index if not exists bot_events_event_created_idx on public.bot_events(event, created_at desc);
+create index if not exists knowledge_suggestions_status_created_idx on public.knowledge_suggestions(status, created_at desc);
+create index if not exists knowledge_suggestions_approved_export_idx on public.knowledge_suggestions(status, approved_at desc, exported_at);
 
 alter table public.customers enable row level security;
 alter table public.messages enable row level security;
 alter table public.learned_answers enable row level security;
 alter table public.bot_events enable row level security;
+alter table public.knowledge_suggestions enable row level security;
+
+grant select, update on public.knowledge_suggestions to anon;
+
+do $$
+begin
+  create policy "knowledge_suggestions_anon_select"
+    on public.knowledge_suggestions
+    for select
+    to anon
+    using (true);
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create policy "knowledge_suggestions_anon_update_approval"
+    on public.knowledge_suggestions
+    for update
+    to anon
+    using (true)
+    with check (status in ('pending', 'approved', 'rejected'));
+exception when duplicate_object then null;
+end $$;
 
 create or replace view public.v_customers_panel as
 select

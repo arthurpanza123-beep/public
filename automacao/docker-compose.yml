@@ -22,6 +22,19 @@ services:
       ollama:
         condition: service_started
 
+  knowledge-exporter:
+    build:
+      context: ./whatsapp-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: sh -c "while true; do npm run export:knowledge; sleep $${KNOWLEDGE_EXPORT_INTERVAL_SECONDS:-60}; done"
+    volumes:
+      - ./knowledge/obsidian:/app/knowledge/obsidian
+    depends_on:
+      whatsapp-bot:
+        condition: service_started
+
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped

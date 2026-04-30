@@ -5,6 +5,7 @@ const kie = require('./kie');
 const localAi = require('./localAi');
 const knowledgeBase = require('./knowledgeBase');
 const obsidianKnowledge = require('./obsidianKnowledge');
+const knowledgeSuggestions = require('./knowledgeSuggestions');
 const { normalizePhone } = require('./phone');
 
 const initialFlowInProgress = new Set();
@@ -170,6 +171,14 @@ async function sendQuestionToArthur({ customer, incoming, intent }) {
       question: incoming.text,
       tags: [intent.intent || intent.stage || 'unknown', 'arthur']
     });
+
+    await knowledgeSuggestions.suggestKnowledge({
+      customer,
+      question: incoming.text,
+      answer: 'Precisa de resposta aprovada no painel.',
+      category: intent.intent || intent.stage || 'unknown',
+      source: 'needs_arthur'
+    });
   } catch (error) {
     logger.error({ err: error, phone: incoming.phone }, 'Nao foi possivel registrar duvida em bot_events/learned_answers.');
   }
@@ -300,6 +309,13 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
       obsidianContext
     });
     logger.info({ phone: incoming.phone, intent }, 'AI_RESPONSE_CREATED');
+    await knowledgeSuggestions.suggestKnowledge({
+      customer,
+      question: incoming.text,
+      answer: responseText,
+      category: intent,
+      source: 'kie'
+    });
     if (/verificar|arthur|passar certinho/i.test(responseText)) {
       await sendQuestionToArthur({ customer, incoming, intent: { intent, stage: customerStage } });
     }
@@ -316,6 +332,13 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
         obsidianContext
       });
       logger.info({ phone: incoming.phone, intent }, 'LOCAL_AI_USED');
+      await knowledgeSuggestions.suggestKnowledge({
+        customer,
+        question: incoming.text,
+        answer: responseText,
+        category: intent,
+        source: 'local_ai'
+      });
     } catch (localError) {
       logger.error({ err: localError, phone: incoming.phone, intent }, 'Falha na IA local.');
       const localFallback = knowledgeBase.localFallbackForIntent(intent, customerStage);

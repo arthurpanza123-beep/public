@@ -100,10 +100,27 @@ LOCAL_AI_TIMEOUT_MS=60000
 Para usar Obsidian como base de estudo, sincronize ou copie suas notas `.md` para:
 
 ```txt
-/opt/public/automacao/knowledge/obsidian
+/opt/public/automacao/knowledge/obsidian/aprovadas
 ```
 
 O bot busca trechos relevantes dessas notas e envia como contexto para a KIE e para a IA local. Isso nao treina o modelo do zero, mas funciona como memoria/RAG simples e ja ajuda bastante.
+
+## Lovable Aprova Conhecimento
+
+Fluxo:
+
+1. Bot ou IA cria uma sugestao em `public.knowledge_suggestions` com `status='pending'`.
+2. Lovable mostra a fila de pendentes.
+3. Arthur revisa, edita `final_answer` e muda `status` para `approved`.
+4. O servico `knowledge-exporter` gera um `.md` em `knowledge/obsidian/aprovadas`.
+5. O bot passa a usar esse conhecimento automaticamente nas proximas respostas.
+
+O exportador roda em loop no Docker pelo servico `knowledge-exporter`. Para executar manualmente:
+
+```bash
+cd /opt/public/automacao
+docker compose exec knowledge-exporter npm run export:knowledge
+```
 
 ## Comeco rapido
 

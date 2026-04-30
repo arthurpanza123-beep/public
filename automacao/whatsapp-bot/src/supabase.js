@@ -188,6 +188,57 @@ async function saveBotEvent({ customerId = null, phone = '', event, payload = {}
   return Array.isArray(data) ? data[0] : data;
 }
 
+async function createKnowledgeSuggestion({
+  customerId = null,
+  phone = '',
+  question,
+  suggestedAnswer = '',
+  finalAnswer = '',
+  category = 'unknown',
+  status = 'pending',
+  source = 'bot'
+}) {
+  if (!question) return null;
+  const data = await request(
+    'post',
+    'knowledge_suggestions',
+    {
+      customer_id: customerId,
+      phone,
+      question,
+      suggested_answer: suggestedAnswer,
+      final_answer: finalAnswer,
+      category,
+      status,
+      source
+    },
+    'return=representation'
+  );
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function getApprovedKnowledgeSuggestions({ onlyNotExported = false } = {}) {
+  const exportedFilter = onlyNotExported ? '&exported_at=is.null' : '';
+  const data = await request(
+    'get',
+    `knowledge_suggestions?status=eq.approved${exportedFilter}&select=*&order=approved_at.desc.nullslast,created_at.desc&limit=500`,
+    undefined,
+    'return=representation'
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+async function markKnowledgeSuggestionExported(id) {
+  if (!id) return null;
+  const data = await request(
+    'patch',
+    `knowledge_suggestions?id=eq.${encodeURIComponent(id)}`,
+    { exported_at: new Date().toISOString() },
+    'return=representation'
+  );
+  return Array.isArray(data) ? data[0] : data;
+}
+
 module.exports = {
   upsertCustomer,
   getCustomerByPhone,
@@ -198,5 +249,8 @@ module.exports = {
   updateCustomerProfile,
   findLearnedAnswer,
   saveUnknownQuestion,
-  saveBotEvent
+  saveBotEvent,
+  createKnowledgeSuggestion,
+  getApprovedKnowledgeSuggestions,
+  markKnowledgeSuggestionExported
 };
