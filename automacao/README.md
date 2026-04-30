@@ -50,9 +50,11 @@ Se a KIE mudar o endpoint no painel ou na documentacao, atualize apenas `KIE_CHA
 Teste a KIE antes do WhatsApp:
 
 ```bash
-cd automacao/whatsapp-bot
-npm run test:kie
+cd /opt/public/automacao
+docker compose exec whatsapp-bot npm run test:kie
 ```
+
+Se aparecer `Missing script: "test:kie"`, o container ainda esta com a imagem antiga. Rode `docker compose down` e `docker compose up -d --build` antes de testar novamente.
 
 ## Comeco rapido
 
