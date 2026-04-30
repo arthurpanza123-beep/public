@@ -52,7 +52,7 @@ module.exports = {
   imageFeedbacks: process.env.IMAGE_FEEDBACKS || 'feedbaks.jpeg',
   imageValores: process.env.IMAGE_VALORES || 'valor.jpeg',
   imageBlack: process.env.IMAGE_BLACK || 'black.jpeg',
-  feedbacksCaption: process.env.IMAGE_FEEDBACKS_CAPTION || 'Feedbacks oficiais Primeflix.',
+  feedbacksCaption: process.env.IMAGE_FEEDBACKS_CAPTION || '👆🏼 Esses são alguns dos nossos 800 clientes que fez o teste do nosso servidor e se tornaram clientes fiéis, pela qualidade, suporte e diferença absurda de qualquer outro servidor do mercado!',
   valuesCaption: process.env.IMAGE_VALORES_CAPTION || '',
   forwardFromMe: readBool('WHATSAPP_FORWARD_FROM_ME', false),
   ignoreGroups: readBool('WHATSAPP_IGNORE_GROUPS', true),

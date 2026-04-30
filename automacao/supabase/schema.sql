@@ -48,12 +48,47 @@ create table if not exists public.messages (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.learned_answers (
+  id uuid primary key default gen_random_uuid(),
+  question text,
+  answer text,
+  tags text[],
+  approved boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+alter table public.learned_answers
+  add column if not exists question text;
+
+alter table public.learned_answers
+  add column if not exists answer text;
+
+alter table public.learned_answers
+  add column if not exists tags text[];
+
+alter table public.learned_answers
+  add column if not exists approved boolean not null default true;
+
+create table if not exists public.bot_events (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references public.customers(id) on delete set null,
+  phone text,
+  event text not null,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists customers_phone_idx on public.customers(phone);
 create index if not exists customers_last_message_at_idx on public.customers(last_message_at desc);
 create index if not exists messages_customer_created_idx on public.messages(customer_id, created_at desc);
+create index if not exists learned_answers_approved_idx on public.learned_answers(approved, created_at desc);
+create index if not exists bot_events_customer_created_idx on public.bot_events(customer_id, created_at desc);
+create index if not exists bot_events_event_created_idx on public.bot_events(event, created_at desc);
 
 alter table public.customers enable row level security;
 alter table public.messages enable row level security;
+alter table public.learned_answers enable row level security;
+alter table public.bot_events enable row level security;
 
 create or replace view public.v_customers_panel as
 select
