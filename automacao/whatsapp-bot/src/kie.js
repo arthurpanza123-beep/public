@@ -62,11 +62,11 @@ function buildPrompt({ customer, messageText, conversationHistory, knowledgeBase
   ].filter(Boolean).join('\n');
 }
 
-function buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage }) {
+function buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage, intent }) {
   return {
     model: config.kieModel,
     max_tokens: maxTokens || config.kieMaxTokens,
-    system: knowledgeBase.buildSystemPrompt({ messageText, customerStage }),
+    system: knowledgeBase.buildSystemPrompt({ messageText, customerStage, intent }),
     messages: [
       {
         role: 'user',
@@ -85,7 +85,7 @@ function buildHeaders() {
   };
 }
 
-async function generateReply({ customer, messageText, conversationHistory = [], knowledgeBase, maxTokens, customerStage }) {
+async function generateReply({ customer, messageText, conversationHistory = [], knowledgeBase, maxTokens, customerStage, intent }) {
   if (!config.kieApiKey) {
     const error = new Error('KIE_API_KEY ausente.');
     error.code = 'KIE_MISSING_API_KEY';
@@ -93,7 +93,7 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
   }
 
   const url = getKieUrl();
-  const requestBody = buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage });
+  const requestBody = buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage, intent });
   const promptSize = JSON.stringify(requestBody).length;
 
   logger.info(
@@ -118,7 +118,7 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
     );
 
     const reply = knowledgeBase.sanitizeWhatsAppReply
-      ? knowledgeBase.sanitizeWhatsAppReply(sanitizeReply(extractText(response.data)))
+      ? knowledgeBase.sanitizeWhatsAppReply(sanitizeReply(extractText(response.data)), { stage: customerStage, intent })
       : sanitizeReply(extractText(response.data));
     logger.info(
       {

@@ -80,15 +80,32 @@ async function sendInitialFlow({ whatsapp, to, customerId }) {
 }
 
 async function sendValues({ whatsapp, to, customerId }) {
+  await replyText({
+    whatsapp,
+    to,
+    customerId,
+    text: 'Claro, vou te mandar os valores.',
+    logContext: { decision: 'send_values_intro' }
+  });
   await whatsapp.sendImage({ to, fileName: config.imageValores, caption: config.valuesCaption });
   await saveOutboundMedia(customerId, config.imageValores, config.valuesCaption || 'valor.jpeg');
+  logger.info({ customerId, response: config.imageValores }, 'VALUE_IMAGE_SENT');
 }
 
-async function replyText({ whatsapp, to, customerId, text, logContext }) {
-  const safeText = knowledgeBase.sanitizeWhatsAppReply(text);
+async function replyText({ whatsapp, to, customerId, text, logContext = {}, stage = '', intent = '' }) {
+  const safeText = knowledgeBase.sanitizeWhatsAppReply(text, { stage, intent });
   await whatsapp.sendText({ to, text: safeText });
   await saveOutboundText(customerId, safeText);
   logger.info({ ...logContext, response: safeText }, 'MESSAGE_SENT');
+}
+
+async function safeUpdateStage(customerId, stage) {
+  if (!stage) return;
+  try {
+    await supabase.updateCustomerStage(customerId, stage);
+  } catch (error) {
+    logger.error({ err: error, customerId, stage }, 'Nao foi possivel atualizar customer.stage.');
+  }
 }
 
 async function sendQuestionToArthur({ customer, incoming, intent }) {
@@ -119,9 +136,11 @@ async function sendQuestionToArthur({ customer, incoming, intent }) {
 }
 
 async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
-  const customerStage = customer.status || 'suporte';
+  const customerStage = knowledgeBase.stageFromCustomer(customer);
   const intent = knowledgeBase.detectIntent(incoming.text);
-  logger.info({ phone: incoming.phone, intent: intent.intent, action: intent.action, stage: customerStage }, 'INTENT_DETECTED');
+  const action = knowledgeBase.actionForIntent(intent, customerStage);
+  logger.info({ phone: incoming.phone, stage: customerStage }, 'STAGE_DETECTED');
+  logger.info({ phone: incoming.phone, intent, action: action.type }, 'INTENT_DETECTED');
 
   let learnedAnswer = null;
   try {
@@ -130,56 +149,54 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
     logger.error({ err: error, phone: incoming.phone }, 'Nao foi possivel consultar learned_answers. Continuando atendimento.');
   }
   if (learnedAnswer) {
-    logger.info({ phone: incoming.phone, learnedAnswerId: learnedAnswer.id }, 'LEARNED_ANSWER_USED');
-    await replyText({
-      whatsapp,
-      to: incoming.replyTo,
-      customerId: customer.id,
-      text: learnedAnswer.answer,
-      logContext: { phone: incoming.phone, decision: 'learned_answer' }
-    });
-    return;
+    logger.info({ phone: incoming.phone, learnedAnswerId: learnedAnswer.id }, 'LEARNED_ANSWER_CONTEXT');
   }
 
-  const localAnswer = knowledgeBase.findLocalAnswer(incoming.text, customerStage);
-  if (localAnswer?.action === 'send_values_image') {
-    logger.info({ phone: incoming.phone, decision: 'send_values', source: localAnswer.source }, 'DECISION=send_values');
+  if (action.type === 'send_values') {
+    logger.info({ phone: incoming.phone, decision: 'send_values', intent }, 'DECISION');
     await sendValues({ whatsapp, to: incoming.replyTo, customerId: customer.id });
-    logger.info({ phone: incoming.phone, response: config.imageValores }, 'MESSAGE_SENT');
+    await safeUpdateStage(customer.id, action.nextStage);
     return;
   }
 
-  if (localAnswer?.answer) {
-    logger.info({ phone: incoming.phone, decision: 'local_answer', source: localAnswer.source, stage: localAnswer.stage }, 'LOCAL_ANSWER_USED');
+  if (action.type === 'local_reply') {
+    const localText = knowledgeBase.localFallbackForIntent(intent, customerStage);
+    logger.info({ phone: incoming.phone, decision: 'local_action', intent, stage: customerStage }, 'LOCAL_ACTION_USED');
     await replyText({
       whatsapp,
       to: incoming.replyTo,
       customerId: customer.id,
-      text: localAnswer.answer,
-      logContext: { phone: incoming.phone, decision: 'local_answer', intent: localAnswer.intent, stage: localAnswer.stage }
+      text: localText,
+      logContext: { phone: incoming.phone, decision: 'local_action', intent },
+      stage: action.nextStage,
+      intent
     });
-    if (localAnswer.needsArthur) {
-      await sendQuestionToArthur({ customer, incoming, intent: localAnswer });
+    await safeUpdateStage(customer.id, action.nextStage);
+    if (action.needsArthur) {
+      await sendQuestionToArthur({ customer, incoming, intent: { intent, stage: action.nextStage } });
     }
     return;
   }
 
-  if (intent.intent === 'human_help' || intent.intent === 'payment') {
-    logger.info({ phone: incoming.phone, decision: 'needs_arthur', intent: intent.intent }, 'DECISION=needs_arthur');
-    await sendQuestionToArthur({ customer, incoming, intent });
+  if (action.type === 'needs_arthur') {
+    logger.info({ phone: incoming.phone, decision: 'needs_arthur', intent }, 'DECISION');
+    await sendQuestionToArthur({ customer, incoming, intent: { intent, stage: customerStage } });
     await replyText({
       whatsapp,
       to: incoming.replyTo,
       customerId: customer.id,
       text: 'Vou chamar Arthur pra te ajudar certinho por aqui.',
-      logContext: { phone: incoming.phone, decision: 'needs_arthur' }
+      logContext: { phone: incoming.phone, decision: 'needs_arthur' },
+      stage: knowledgeBase.stages.human,
+      intent
     });
+    await safeUpdateStage(customer.id, knowledgeBase.stages.human);
     return;
   }
 
   let responseText;
   try {
-    logger.info({ phone: incoming.phone, decision: 'ai_reply', intent: intent.intent }, 'DECISION=ai_reply');
+    logger.info({ phone: incoming.phone, decision: 'ai_reply', intent }, 'DECISION');
     const conversationHistory = await supabase.getRecentMessages(customer.id, 10);
     responseText = await kie.generateReply({
       customer: {
@@ -189,16 +206,24 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
       messageText: incoming.text,
       conversationHistory,
       knowledgeBase,
-      customerStage
+      customerStage,
+      intent
     });
-    logger.info({ phone: incoming.phone, intent: intent.intent }, 'AI_RESPONSE_CREATED');
+    logger.info({ phone: incoming.phone, intent }, 'AI_RESPONSE_CREATED');
     if (/verificar|arthur|passar certinho/i.test(responseText)) {
-      await sendQuestionToArthur({ customer, incoming, intent });
+      await sendQuestionToArthur({ customer, incoming, intent: { intent, stage: customerStage } });
     }
   } catch (error) {
-    logger.error({ err: error, phone: incoming.phone }, 'Falha ao chamar IA. Duvida sera enviada para Arthur.');
-    await sendQuestionToArthur({ customer, incoming, intent });
-    responseText = knowledgeBase.fallback;
+    logger.error({ err: error, phone: incoming.phone, intent }, 'Falha ao chamar IA.');
+    const localFallback = knowledgeBase.localFallbackForIntent(intent, customerStage);
+    if (localFallback !== knowledgeBase.fallback) {
+      logger.info({ phone: incoming.phone, intent }, 'LOCAL_ACTION_USED');
+      responseText = localFallback;
+    } else {
+      await sendQuestionToArthur({ customer, incoming, intent: { intent, stage: customerStage } });
+      logger.info({ phone: incoming.phone, intent }, 'FALLBACK_USED');
+      responseText = knowledgeBase.fallback;
+    }
   }
 
   await replyText({
@@ -206,8 +231,11 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
     to: incoming.replyTo,
     customerId: customer.id,
     text: responseText,
-    logContext: { phone: incoming.phone, decision: 'ai_reply', intent: intent.intent }
+    logContext: { phone: incoming.phone, decision: 'ai_reply', intent },
+    stage: action.nextStage,
+    intent
   });
+  await safeUpdateStage(customer.id, action.nextStage);
 }
 
 async function processIncomingMessage(payload, whatsapp) {
@@ -264,6 +292,7 @@ async function processIncomingMessage(payload, whatsapp) {
       try {
         await sendInitialFlow({ whatsapp, to: incoming.replyTo, customerId: customer.id });
         const updatedCustomer = await supabase.markInitialFlowSent(customer.id);
+        await safeUpdateStage(customer.id, knowledgeBase.stages.waitingContactSaved);
         logger.info(
           {
             phone: incoming.phone,

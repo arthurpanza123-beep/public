@@ -108,6 +108,20 @@ async function markInitialFlowSent(customerId) {
   return Array.isArray(data) ? data[0] : data;
 }
 
+async function updateCustomerStage(customerId, stage) {
+  if (!customerId || !stage) return null;
+  const data = await request(
+    'patch',
+    `customers?id=eq.${encodeURIComponent(customerId)}`,
+    {
+      stage,
+      last_message_at: new Date().toISOString()
+    },
+    'return=representation'
+  );
+  return Array.isArray(data) ? data[0] : data;
+}
+
 async function findLearnedAnswer(question) {
   const normalizedQuestion = normalizeText(question);
   if (!normalizedQuestion) return null;
@@ -163,6 +177,7 @@ module.exports = {
   saveMessage,
   getRecentMessages,
   markInitialFlowSent,
+  updateCustomerStage,
   findLearnedAnswer,
   saveUnknownQuestion,
   saveBotEvent

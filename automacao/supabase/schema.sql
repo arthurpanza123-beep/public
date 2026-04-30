@@ -5,6 +5,7 @@ create table if not exists public.customers (
   name text,
   phone text not null,
   status text default 'bot',
+  stage text default 'ai_service',
   device text,
   app_used text,
   notes text,
@@ -29,6 +30,9 @@ alter table public.customers
 
 alter table public.customers
   alter column status set default 'bot';
+
+alter table public.customers
+  add column if not exists stage text default 'ai_service';
 
 do $$
 begin
@@ -99,6 +103,7 @@ select
   c.name,
   c.phone,
   c.status,
+  c.stage,
   c.device,
   c.app_used,
   c.notes,

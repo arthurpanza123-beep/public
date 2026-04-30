@@ -28,14 +28,15 @@ O bot marca `customers.flow_initial_sent=true` e `customers.flow_initial_sent_at
 Depois do fluxo inicial, o bot segue esta ordem:
 
 1. Detecta a intencao da mensagem.
-2. Procura uma resposta aprovada em `learned_answers`.
-3. Procura uma resposta local aprovada em `knowledgeBase.js`.
-4. Chama a KIE AI somente quando nao houver resposta local, enviando apenas o trecho relevante da base como contexto.
-5. Se a duvida nao estiver na base, registra em `bot_events`, salva em `learned_answers` como `approved=false` e responde que vai verificar com Arthur.
+2. Executa acoes diretas quando necessario, como enviar `valor.jpeg`.
+3. Usa respostas locais apenas para instrucoes tecnicas objetivas ou fallback por intencao.
+4. Chama a KIE AI para escrever respostas naturais quando a intencao nao for uma acao direta.
+5. Envia para a KIE apenas o contexto relevante da `knowledgeBase`, junto da etapa atual do cliente.
+6. Se a duvida nao estiver clara ou a KIE falhar sem fallback por intencao, registra em `bot_events`, salva em `learned_answers` como `approved=false` e responde que vai verificar com Arthur.
 
 Com `LOG_LEVEL=debug`, os logs mostram intencao detectada, resposta usada da base, resposta criada por IA e duvida enviada para Arthur.
 
-As respostas do WhatsApp sao sanitizadas antes do envio: sem markdown, sem negrito, sem excesso de emoji e sem frases proibidas. Valores sempre usam `valor.jpeg` com a legenda oficial configurada no `.env`.
+As respostas do WhatsApp sao sanitizadas antes do envio: sem markdown, sem negrito, sem excesso de emoji, sem frases proibidas e sem provedor durante instalacao. Valores sempre usam `valor.jpeg` com a legenda oficial configurada no `.env`.
 
 ## KIE AI
 

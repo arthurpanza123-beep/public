@@ -1,240 +1,238 @@
-const productOverview = {
-  name: 'Primeflix',
-  summary: 'Plataforma de conteudos com filmes, series, canais e esportes em um unico aplicativo.',
-  goal: 'Conduzir o cliente para entender o produto, instalar o app correto, testar e assinar com seguranca.',
-  test: {
-    isFree: true,
-    duration: '1 hora',
-    beforeRelease: 'Pedir para salvar o contato do Bruno, enviar o nome e confirmar que esta com o aparelho em maos.'
+const stages = {
+  initialFlow: 'initial_flow',
+  waitingContactSaved: 'waiting_contact_saved',
+  waitingName: 'waiting_name',
+  waitingDevice: 'waiting_device',
+  installingApp: 'installing_app',
+  waitingLoginRelease: 'waiting_login_release',
+  aiService: 'ai_service',
+  renewal: 'renewal',
+  human: 'human'
+};
+
+const intents = {
+  priceRequest: 'price_request',
+  testRequest: 'test_request',
+  productExplanation: 'product_explanation',
+  deviceQuestion: 'device_question',
+  deviceLg: 'device_lg',
+  deviceSamsung: 'device_samsung',
+  deviceRoku: 'device_roku',
+  deviceAndroid: 'device_android',
+  deviceIphone: 'device_iphone',
+  deviceTvbox: 'device_tvbox',
+  deviceFirestick: 'device_firestick',
+  installedApp: 'installed_app',
+  renewal: 'renewal',
+  supportProblem: 'support_problem',
+  paymentQuestion: 'payment_question',
+  humanRequest: 'human_request',
+  unknown: 'unknown'
+};
+
+const facts = {
+  productName: 'Primeflix',
+  productSummary: 'A Primeflix reune filmes, series, canais e esportes em um unico aplicativo.',
+  usageFlow: 'O cliente instala o aplicativo no aparelho, faz um teste gratuito de 1 hora e depois escolhe um plano.',
+  testDuration: '1 hora',
+  testIsFree: true,
+  officialValueImage: 'valor.jpeg',
+  brunoContactRule: 'Antes de liberar teste, pedir para salvar o contato do Bruno e mandar o nome.',
+  audioContext: {
+    audio01: 'Bruno se apresenta, pede para salvar o contato antes de liberar o teste gratuito e pede para o cliente enviar o nome.',
+    audio02: 'Explica filmes, series, streamings, canais, esportes, suporte, qualidade e atualizacoes semanais.',
+    qualTv: 'Pergunta se vai instalar na TV ou celular; se for TV, pergunta se e smart e qual marca.',
+    renovacao: 'Pergunta se quer renovar mensal ou fazer upgrade para trimestral, semestral ou anual. O anual tem duas telas.'
   }
 };
 
-const serviceRules = [
-  'Nao usar markdown nas respostas do WhatsApp.',
-  'Nao usar negrito.',
-  'Nao usar excesso de emoji.',
-  'Nao usar a frase "com isso eu te passo".',
-  'Nao parecer robo.',
-  'Nao repetir o fluxo inicial.',
-  'Nao inventar preco, plano, prazo, promocao ou desconto.',
-  'Nao falar provedor antes da etapa de usuario e senha.',
-  'Na etapa de instalacao, falar apenas o app ou caminho de instalacao.',
-  'Responder curto, natural, profissional e com foco em conduzir o cliente.'
+const rules = {
+  general: [
+    'Nao repetir o fluxo inicial.',
+    'Nao inventar preco, plano, prazo, promocao ou desconto.',
+    'Nao usar fallback para intencoes claras.',
+    'Nao parecer robo.',
+    'Responder como atendente humano, profissional e vendedor.'
+  ],
+  values: [
+    'Quando a intencao for price_request, nao chamar KIE.',
+    'Enviar valor.jpeg com a legenda oficial.',
+    'Pode responder antes: Claro, vou te mandar os valores.',
+    'Nunca dizer que nao vai passar por texto.',
+    'Nunca inventar valores fora da arte oficial.'
+  ],
+  test: [
+    'Teste e gratuito.',
+    'Teste dura 1 hora.',
+    'Antes de liberar teste, confirmar contato salvo e nome.',
+    'Antes de criar teste, confirmar se o cliente esta com o aparelho em maos e consegue testar agora.'
+  ]
+};
+
+const tone = {
+  style: 'curto, natural, profissional e vendedor',
+  maxSentences: 4,
+  noMarkdown: true,
+  noBold: true,
+  lowEmoji: true,
+  avoidRobotTone: true
+};
+
+const forbiddenPhrases = [
+  'com isso eu te passo',
+  'vou acompanhar',
+  'nao vou passar por texto',
+  'não vou passar por texto'
 ];
 
-const flowStages = [
-  'fluxo_inicial',
-  'salvou_contato',
-  'pedir_nome',
-  'explicar_produto',
-  'perguntar_aparelho',
-  'orientar_instalacao',
-  'liberar_login',
-  'enviar_valores',
-  'confirmar_teste',
-  'aguardar_arthur',
-  'renovacao',
-  'suporte'
-];
+const deviceInstallation = {
+  lg: {
+    intent: intents.deviceLg,
+    appOnly: 'Na loja de aplicativos da TV, procure por XcloudTV. Em alguns modelos, ele tambem pode aparecer como Premium IPTV.',
+    localFallback: 'Ótimo! Sua TV LG é compatível.\n\nNa loja de aplicativos da TV, procure por XcloudTV. Em alguns modelos, ele também pode aparecer como Premium IPTV.\n\nApós instalar o aplicativo, é só me chamar por aqui para liberar o acesso.'
+  },
+  samsung: {
+    intent: intents.deviceSamsung,
+    appOnly: 'Na loja de aplicativos da TV, procure por XcloudTV ou Premium IPTV.',
+    localFallback: 'Ótimo! Sua TV Samsung é compatível.\n\nNa loja de aplicativos da TV, procure por XcloudTV ou Premium IPTV.\n\nApós instalar o aplicativo, é só me chamar por aqui para liberar o acesso.'
+  },
+  roku: {
+    intent: intents.deviceRoku,
+    appOnly: 'Procure pelo aplicativo indicado na loja da TV. Se nao encontrar, pedir modelo para passar a alternativa correta.',
+    localFallback: 'Ótimo! Sua TV Roku é compatível.\n\nProcure pelo aplicativo indicado na loja da TV. Se não encontrar, me avisa que eu te passo a alternativa correta para o seu modelo.'
+  },
+  android: {
+    intent: intents.deviceAndroid,
+    appOnly: 'No Android, instalar pelo link oficial: https://primeflixapp.com/pmf.apk',
+    localFallback: 'No Android, você pode instalar pelo link oficial:\n\nhttps://primeflixapp.com/pmf.apk\n\nDepois de instalar, me chama aqui para liberar o acesso.'
+  },
+  iphone: {
+    intent: intents.deviceIphone,
+    appOnly: 'No iPhone, baixar o aplicativo Xcloud Mobile.',
+    localFallback: 'No iPhone, baixe o aplicativo Xcloud Mobile.\n\nDepois que instalar, me chama aqui para liberar o acesso.'
+  },
+  tvbox: {
+    intent: intents.deviceTvbox,
+    appOnly: 'Na TV Box, baixar Downloader codigo 4648223. Alternativa: NtDown codigo 27422.',
+    localFallback: 'Perfeito. Na TV Box, baixe o app Downloader e use o código 4648223.\n\nSe não abrir, use o NtDown com o código 27422.\n\nDepois que instalar, me chama por aqui para liberar o acesso.'
+  },
+  firestick: {
+    intent: intents.deviceFirestick,
+    appOnly: 'No Fire Stick, baixar Downloader e usar codigo 4648223.',
+    localFallback: 'Perfeito. No Fire Stick, baixe o app Downloader e use o código 4648223.\n\nDepois de instalar o aplicativo, me chama aqui para liberar o acesso.'
+  }
+};
 
-const officialAudioContext = {
-  AUDIO_01: 'Bruno se apresenta, pede para salvar o contato antes de liberar o teste gratuito, explica que algumas pessoas nao recebem acesso ou recebem fora de ordem, pede para o cliente salvar o contato e enviar o nome.',
-  AUDIO_02: 'Explica que o cliente tera filmes e series dos principais streamings em um unico app, canais, esportes, conteudos ao vivo, suporte, qualidade e atualizacoes semanais.',
-  AUDIO_QUAL_TV: 'Pergunta se o cliente vai instalar na TV ou celular. Se for TV, pergunta se e smart e qual marca. Se for Fire Stick, TV Box ou outro aparelho, pede para informar.',
-  AUDIO_RENOVACAO: 'Pergunta se o cliente quer renovar no mensal ou fazer upgrade para trimestral, semestral ou anual. O anual tem duas telas.'
+const loginRules = {
+  provider: 'primeflixapp',
+  providerOnlyAtLogin: true,
+  rule: 'Provedor so pode ser enviado junto com usuario e senha, na etapa de liberar acesso/login. Nunca enviar provedor na etapa de instalacao.'
 };
 
 const commercialRules = {
-  values: {
-    action: 'send_values_image',
-    image: 'valor.jpeg',
-    captionSource: 'IMAGE_VALORES_CAPTION',
-    triggers: ['valor', 'valores', 'preco', 'preço', 'mensalidade', 'plano', 'planos', 'quanto custa'],
-    localAnswer: 'Claro, vou te mandar os valores.'
-  },
-  test: {
-    triggers: ['teste', 'testar', 'teste gratis', 'teste grátis', 'quero teste', 'fazer teste'],
-    localAnswer: 'Perfeito. Antes de liberar o teste, salva o contato do Bruno e me manda seu nome. O teste dura 1 hora, então o ideal é fazer quando você estiver com o aparelho em mãos.'
-  },
-  payment: {
-    triggers: ['pagar', 'pagamento', 'pix', 'cartao', 'cartão', 'paguei'],
-    localAnswer: 'Depois que você escolher o plano, eu te envio as opções de pagamento. Assim que confirmar, faço a ativação do seu acesso.'
-  },
-  renewal: {
-    triggers: ['renovar', 'renovacao', 'renovação', 'vencido', 'venceu'],
-    localAnswer: 'Perfeito. Você quer continuar no plano mensal ou fazer upgrade para trimestral, semestral ou anual? Lembrando que o plano anual tem duas telas.'
-  }
+  valuesImage: 'valor.jpeg',
+  valueCaptionMustBeOfficial: true,
+  renewal: 'Perguntar se quer continuar mensal ou fazer upgrade para trimestral, semestral ou anual. O anual tem duas telas.',
+  payment: 'Depois que o cliente escolher o plano, enviar opcoes de pagamento. Pagamento confirmado deve chamar Arthur.'
 };
 
-const deviceGuide = {
-  lg: {
-    triggers: ['lg'],
-    stage: 'orientar_instalacao',
-    answer: 'Ótimo! Sua TV LG é compatível. Na loja de aplicativos da TV, procure por XcloudTV. Em alguns modelos, ele também pode aparecer como Premium IPTV. Após instalar o aplicativo, é só me chamar por aqui para liberar o acesso.'
-  },
-  samsung: {
-    triggers: ['samsung'],
-    stage: 'orientar_instalacao',
-    answer: 'Ótimo! Sua TV Samsung é compatível. Na loja de aplicativos da TV, procure por XcloudTV ou Premium IPTV. Após instalar o aplicativo, me chama por aqui para liberar o acesso.'
-  },
-  roku: {
-    triggers: ['roku'],
-    stage: 'orientar_instalacao',
-    answer: 'Ótimo! Sua TV Roku é compatível. Procure pelo aplicativo indicado na loja da TV. Se não encontrar, me avisa que eu te passo a alternativa correta para o seu modelo.'
-  },
-  tcl: {
-    triggers: ['tcl'],
-    stage: 'orientar_instalacao',
-    answer: 'Certo. Na TCL, normalmente o caminho é instalar pelo Downloader. Baixe o app Downloader e use o código 4648223. Se não abrir, a alternativa é usar o NtDown com o código 27422. Depois de instalar, me chama para liberar o acesso.'
-  },
-  tvBox: {
-    triggers: ['tv box', 'box'],
-    stage: 'orientar_instalacao',
-    answer: 'Perfeito. Na TV Box, baixe o app Downloader e use o código 4648223. Se não abrir, use o NtDown com o código 27422. Depois que instalar, me chama por aqui para liberar o acesso.'
-  },
-  fireStick: {
-    triggers: ['fire stick', 'firestick'],
-    stage: 'orientar_instalacao',
-    answer: 'Perfeito. No Fire Stick, baixe o app Downloader e use o código 4648223. Depois de instalar o aplicativo, me chama aqui para liberar o acesso.'
-  },
-  miStick: {
-    triggers: ['mi stick', 'mistick'],
-    stage: 'orientar_instalacao',
-    answer: 'Perfeito. No Mi Stick, baixe o app Downloader e use o código 4648223. Se não funcionar, use o NtDown com o código 27422. Quando instalar, me chama para liberar o acesso.'
-  },
-  downloaderDevices: {
-    triggers: ['aiwa', 'projetor', 'philco'],
-    stage: 'orientar_instalacao',
-    answer: 'Nesse aparelho, normalmente o caminho é pelo Downloader. Baixe o app Downloader e use o código 4648223. Se não abrir, use o NtDown com o código 27422. Depois me chama para liberar o acesso.'
-  },
-  android: {
-    triggers: ['android', 'celular android'],
-    stage: 'orientar_instalacao',
-    answer: 'No Android, você pode instalar pelo link oficial: https://primeflixapp.com/pmf.apk Depois de instalar, me chama aqui para liberar o acesso.'
-  },
-  iphone: {
-    triggers: ['iphone', 'ios'],
-    stage: 'orientar_instalacao',
-    answer: 'No iPhone, baixe o aplicativo Xcloud Mobile. Depois que instalar, me chama aqui para liberar o acesso.'
-  },
-  smartTv: {
-    triggers: ['tv smart', 'smart tv', 'smart', 'minha tv é smart', 'minha tv e smart', 'é smart', 'e smart'],
-    stage: 'perguntar_aparelho',
-    answer: 'Funciona sim. Me fala a marca da sua TV: LG, Samsung, Roku, TCL ou outra? Assim eu te passo o aplicativo certo para instalar.'
-  }
+const examplesApproved = {
+  productExplanationIdeas: [
+    'Explicar que instala o app, faz teste gratuito de 1 hora, avalia a qualidade e depois escolhe um plano.',
+    'Citar filmes, series, canais e esportes em um unico aplicativo.',
+    'Finalizar perguntando o aparelho ou oferecendo teste/valores de acordo com contexto.'
+  ],
+  smartTv: 'Funciona sim. Me fala a marca da sua TV: LG, Samsung, Roku, TCL ou outra? Assim eu te oriento com o app certo.',
+  support: 'Entendi. Me fala qual aparelho voce esta usando e o que aparece na tela. Se puder, manda uma foto do erro para eu te orientar certinho.',
+  testNoContact: 'Perfeito. Antes de liberar o teste, salva o contato do Bruno e me manda seu nome. O teste dura 1 hora, então o ideal é fazer quando você estiver com o aparelho em mãos.',
+  testWithContact: 'Perfeito. Você está com o aparelho em mãos e consegue testar agora? O teste dura 1 hora.'
 };
 
-const approvedAnswers = [
-  {
-    id: 'como_funciona',
-    triggers: ['como funciona', 'como funciona o produto', 'como funciona isso'],
-    stage: 'explicar_produto',
-    answer: 'Funciona assim: você instala o aplicativo no seu aparelho, faz um teste gratuito e vê a qualidade antes de assinar. Dentro da plataforma você encontra filmes, séries, canais e esportes em um só lugar. Me fala onde você pretende usar: TV Smart, TV Box, Fire Stick, celular ou outro aparelho?'
-  },
-  {
-    id: 'o_que_e_primeflix',
-    triggers: ['o que é a primeflix', 'o que e a primeflix', 'primeflix é o que', 'primeflix e o que'],
-    stage: 'explicar_produto',
-    answer: 'A Primeflix é uma plataforma de conteúdos onde você acessa filmes, séries, canais e esportes em um único aplicativo. O ideal é você fazer o teste gratuito no seu aparelho para ver a qualidade antes de escolher um plano.'
-  },
-  {
-    id: 'teste_gratis',
-    triggers: ['tem teste grátis', 'tem teste gratis'],
-    stage: 'confirmar_teste',
-    answer: 'Tem sim. O teste é gratuito e dura 1 hora. Pra liberar certinho, salva o contato do Bruno e me manda seu nome. Depois disso eu te direciono para instalar no seu aparelho.'
-  },
-  {
-    id: 'ja_salvei',
-    triggers: ['já salvei', 'ja salvei', 'salvei o contato', 'salvei contato'],
-    stage: 'pedir_nome',
-    answer: 'Perfeito. Me manda seu nome também, por favor, para eu salvar seu contato certinho aqui e seguir com a liberação.'
-  },
-  {
-    id: 'nome_cliente',
-    triggers: ['meu nome é', 'meu nome e', 'sou o', 'sou a'],
-    stage: 'perguntar_aparelho',
-    answer: 'Obrigado. Agora me fala onde você vai usar: TV Smart, TV Box, Fire Stick, celular ou outro aparelho?'
-  },
-  {
-    id: 'filmes_series',
-    triggers: ['tem filmes', 'tem series', 'tem séries', 'filmes e series', 'filmes e séries'],
-    stage: 'explicar_produto',
-    answer: 'Tem sim. A plataforma reúne filmes, séries, canais e esportes em um só lugar. Você consegue testar antes de assinar para ver se atende bem no seu aparelho.'
-  },
-  {
-    id: 'streamings',
-    triggers: ['tem netflix', 'tem disney', 'netflix disney', 'outros streamings'],
-    stage: 'explicar_produto',
-    answer: 'Dentro da plataforma você encontra conteúdos de vários streamings em um único aplicativo. O ideal é fazer o teste gratuito para ver a organização e a qualidade direto no seu aparelho.'
-  },
-  {
-    id: 'canais',
-    triggers: ['tem canais', 'canal', 'canais'],
-    stage: 'explicar_produto',
-    answer: 'Tem canais sim, incluindo opções de filmes, esportes e entretenimento. Se quiser, posso te liberar um teste para você ver a qualidade ao vivo.'
-  },
-  {
-    id: 'futebol',
-    triggers: ['tem futebol', 'futebol', 'jogo', 'esporte', 'esportes'],
-    stage: 'explicar_produto',
-    answer: 'Tem conteúdos esportivos sim. O melhor é fazer o teste no horário que você costuma assistir, para ver a qualidade no seu aparelho.'
-  },
-  {
-    id: 'trava',
-    triggers: ['trava', 'travando', 'fica travando'],
-    stage: 'suporte',
-    answer: 'A qualidade depende da internet e do aparelho, mas o servidor é focado em estabilidade e carregamento rápido. Por isso o teste é importante: você vê a qualidade antes de assinar.'
-  },
-  {
-    id: 'internet_fraca',
-    triggers: ['internet fraca', 'minha internet é fraca', 'minha internet e fraca'],
-    stage: 'suporte',
-    answer: 'Pode funcionar, mas o ideal é testar no seu aparelho. O teste gratuito serve justamente para você ver se roda bem na sua internet antes de escolher um plano.'
-  },
-  {
-    id: 'confiavel',
-    triggers: ['é confiável', 'e confiavel', 'confiável', 'confiavel'],
-    stage: 'explicar_produto',
-    answer: 'Sim. A melhor forma de você confirmar é fazendo o teste gratuito antes de assinar. Você vê a qualidade, o suporte e decide com segurança.'
-  },
-  {
-    id: 'duas_telas',
-    triggers: ['duas telas', '2 telas', 'duas tv', 'dois aparelhos'],
-    stage: 'enviar_valores',
-    answer: 'Tem opção para duas telas sim, dependendo do plano. Se você quiser, eu te mando a tabela de valores para escolher o melhor plano.',
-    followUpAction: 'send_values_if_pricing'
-  },
-  {
-    id: 'erro_suporte',
-    triggers: ['deu erro', 'está travando', 'esta travando', 'problema', 'não abre', 'nao abre'],
-    stage: 'suporte',
-    answer: 'Entendi. Me fala qual aparelho você está usando e o que aparece na tela. Se puder, manda uma foto do erro para eu te orientar certinho.'
-  }
-];
-
-const faq = approvedAnswers;
-
-const whenToAskArthur = [
-  'Cliente pediu algo fora da base.',
-  'Cliente esta irritado.',
-  'Erro ao criar teste.',
-  'Pedido de desconto especial.',
-  'Pagamento confirmado.',
-  'Renovacao com duvida.',
-  'Problema tecnico que nao foi resolvido.',
-  'Cliente perguntou algo sensivel ou comercial que nao esta aprovado.'
-];
-
-const neverDo = [
-  'Nunca inventar preco.',
-  'Nunca mandar provedor na etapa de instalacao.',
-  'Nunca dizer que nao vai passar valores por texto.',
-  'Nunca repetir fluxo inicial.',
-  'Nunca enviar promocao sem Arthur.',
-  'Nunca usar markdown, negrito ou resposta robotica.'
-];
+const localFallbackByIntent = {
+  [intents.productExplanation]: 'Funciona assim: você instala o aplicativo no seu aparelho, faz um teste gratuito de 1 hora e vê a qualidade antes de assinar. A Primeflix reúne filmes, séries, canais e esportes em um só lugar. Me fala onde você pretende usar: TV Smart, TV Box, Fire Stick, celular ou outro aparelho?',
+  [intents.deviceQuestion]: 'Funciona sim. Me fala a marca da sua TV: LG, Samsung, Roku, TCL ou outra? Assim eu te oriento com o app certo.',
+  [intents.deviceLg]: deviceInstallation.lg.localFallback,
+  [intents.deviceSamsung]: deviceInstallation.samsung.localFallback,
+  [intents.deviceRoku]: deviceInstallation.roku.localFallback,
+  [intents.deviceAndroid]: deviceInstallation.android.localFallback,
+  [intents.deviceIphone]: deviceInstallation.iphone.localFallback,
+  [intents.deviceTvbox]: deviceInstallation.tvbox.localFallback,
+  [intents.deviceFirestick]: deviceInstallation.firestick.localFallback,
+  [intents.testRequest]: examplesApproved.testNoContact,
+  [intents.renewal]: 'Perfeito. Você quer continuar no plano mensal ou fazer upgrade para trimestral, semestral ou anual? Lembrando que o plano anual tem duas telas.',
+  [intents.supportProblem]: examplesApproved.support,
+  [intents.paymentQuestion]: 'Depois que você escolher o plano, eu te envio as opções de pagamento. Assim que confirmar, faço a ativação do seu acesso.',
+  [intents.installedApp]: 'Perfeito. Agora vou verificar a liberação do acesso para você usar no aplicativo.'
+};
 
 const fallback = 'Vou confirmar essa informação rapidinho para te passar certinho.';
+
+const intentPatterns = [
+  {
+    intent: intents.priceRequest,
+    patterns: ['valor', 'valores', 'preco', 'precos', 'preço', 'preços', 'quanto custa', 'planos', 'mensal', 'mensalidade', 'tabela', 'quero saber os valores', 'me manda os valores', 'quero ver os planos']
+  },
+  {
+    intent: intents.testRequest,
+    patterns: ['teste', 'quero testar', 'liberar teste', 'teste gratis', 'teste grátis', 'gratuito']
+  },
+  {
+    intent: intents.productExplanation,
+    patterns: ['como funciona', 'me explica', 'o que e', 'o que é', 'como e', 'como é', 'como usa', 'como funciona o produto', 'o que vem']
+  },
+  {
+    intent: intents.deviceLg,
+    patterns: ['lg', 'tv lg', 'minha tv e lg', 'minha tv é lg']
+  },
+  {
+    intent: intents.deviceSamsung,
+    patterns: ['samsung', 'tv samsung', 'minha tv e samsung', 'minha tv é samsung']
+  },
+  {
+    intent: intents.deviceRoku,
+    patterns: ['roku', 'tv roku']
+  },
+  {
+    intent: intents.deviceAndroid,
+    patterns: ['android', 'celular android', 'apk']
+  },
+  {
+    intent: intents.deviceIphone,
+    patterns: ['iphone', 'ios', 'apple']
+  },
+  {
+    intent: intents.deviceTvbox,
+    patterns: ['tv box', 'box', 'android box']
+  },
+  {
+    intent: intents.deviceFirestick,
+    patterns: ['fire stick', 'firestick', 'fire tv']
+  },
+  {
+    intent: intents.installedApp,
+    patterns: ['ja instalei', 'já instalei', 'instalei', 'baixei', 'ja baixei', 'já baixei']
+  },
+  {
+    intent: intents.deviceQuestion,
+    patterns: ['tv smart', 'smart tv', 'smart', 'minha tv e smart', 'minha tv é smart', 'e smart sim', 'é smart sim']
+  },
+  {
+    intent: intents.renewal,
+    patterns: ['renovar', 'renovacao', 'renovação', 'vencido', 'venceu']
+  },
+  {
+    intent: intents.supportProblem,
+    patterns: ['travando', 'erro', 'nao abre', 'não abre', 'nao funciona', 'não funciona', 'caiu', 'sem sinal', 'tela preta']
+  },
+  {
+    intent: intents.paymentQuestion,
+    patterns: ['pagamento', 'pagar', 'pix', 'cartao', 'cartão', 'paguei']
+  },
+  {
+    intent: intents.humanRequest,
+    patterns: ['atendente', 'arthur', 'humano', 'falar com alguem', 'falar com alguém']
+  }
+];
 
 function normalizeText(text) {
   return String(text || '')
@@ -252,128 +250,135 @@ function includesAny(text, patterns) {
 }
 
 function detectIntent(messageText) {
-  if (includesAny(messageText, commercialRules.values.triggers)) return { intent: 'pricing', action: 'send_values_image' };
-  if (includesAny(messageText, commercialRules.test.triggers)) return { intent: 'test_request', action: 'reply_text' };
-  if (includesAny(messageText, commercialRules.payment.triggers)) return { intent: 'payment', action: 'reply_text' };
-  if (includesAny(messageText, commercialRules.renewal.triggers)) return { intent: 'renewal', action: 'reply_text' };
-  if (includesAny(messageText, ['atendente', 'arthur', 'humano', 'suporte humano'])) return { intent: 'human_help', action: 'needs_arthur' };
-  if (Object.values(deviceGuide).some((item) => includesAny(messageText, item.triggers))) return { intent: 'device_setup', action: 'reply_text' };
-  return { intent: 'unknown', action: 'ai_reply' };
+  const match = intentPatterns.find((item) => includesAny(messageText, item.patterns));
+  return match ? match.intent : intents.unknown;
 }
 
-function findLocalAnswer(messageText, customerStage = '') {
-  if (includesAny(messageText, commercialRules.values.triggers)) {
-    return {
-      source: 'commercialRules.values',
-      intent: 'pricing',
-      stage: 'enviar_valores',
-      action: 'send_values_image',
-      answer: commercialRules.values.localAnswer
-    };
-  }
-
-  if (includesAny(messageText, commercialRules.test.triggers)) {
-    return {
-      source: 'commercialRules.test',
-      intent: 'test_request',
-      stage: 'confirmar_teste',
-      action: 'reply_text',
-      answer: commercialRules.test.localAnswer
-    };
-  }
-
-  if (includesAny(messageText, commercialRules.payment.triggers)) {
-    return {
-      source: 'commercialRules.payment',
-      intent: 'payment',
-      stage: 'aguardar_arthur',
-      action: 'reply_text',
-      answer: commercialRules.payment.localAnswer,
-      needsArthur: true
-    };
-  }
-
-  if (includesAny(messageText, commercialRules.renewal.triggers)) {
-    return {
-      source: 'commercialRules.renewal',
-      intent: 'renewal',
-      stage: 'renovacao',
-      action: 'reply_text',
-      answer: commercialRules.renewal.localAnswer
-    };
-  }
-
-  const deviceAnswer = Object.entries(deviceGuide).find(([, item]) => includesAny(messageText, item.triggers));
-  if (deviceAnswer) {
-    const [source, item] = deviceAnswer;
-    return {
-      source: `deviceGuide.${source}`,
-      intent: 'device_setup',
-      stage: item.stage,
-      action: 'reply_text',
-      answer: item.answer
-    };
-  }
-
-  const approved = approvedAnswers.find((item) => includesAny(messageText, item.triggers));
-  if (approved) {
-    return {
-      source: `approvedAnswers.${approved.id}`,
-      intent: approved.stage,
-      stage: approved.stage || customerStage,
-      action: 'reply_text',
-      answer: approved.answer,
-      followUpAction: approved.followUpAction
-    };
-  }
-
-  return null;
+function stageFromCustomer(customer = {}) {
+  if (customer.stage) return customer.stage;
+  if (!customer.flow_initial_sent) return stages.initialFlow;
+  if (customer.assigned_to_human) return stages.human;
+  return stages.aiService;
 }
 
-function getRelevantContext(messageText, customerStage = '') {
-  const localAnswer = findLocalAnswer(messageText, customerStage);
-  const intent = detectIntent(messageText);
-  const relevantDevices = Object.fromEntries(
-    Object.entries(deviceGuide).filter(([, item]) => includesAny(messageText, item.triggers))
-  );
+function actionForIntent(intent, stage) {
+  if (intent === intents.priceRequest) return { type: 'send_values', nextStage: stages.aiService };
+  if (intent === intents.humanRequest) return { type: 'needs_arthur', nextStage: stages.human };
+  if (intent === intents.paymentQuestion) return { type: 'local_reply', needsArthur: true, nextStage: stages.aiService };
+  if (intent === intents.testRequest) return { type: 'local_reply', nextStage: stage === stages.waitingDevice || stage === stages.installingApp || stage === stages.waitingLoginRelease ? stages.waitingLoginRelease : stages.waitingContactSaved };
+  if (intent === intents.installedApp) return { type: 'local_reply', needsArthur: true, nextStage: stages.waitingLoginRelease };
 
+  const directInstallIntents = new Set([
+    intents.deviceQuestion,
+    intents.deviceLg,
+    intents.deviceSamsung,
+    intents.deviceRoku,
+    intents.deviceAndroid,
+    intents.deviceIphone,
+    intents.deviceTvbox,
+    intents.deviceFirestick,
+    intents.supportProblem,
+    intents.renewal
+  ]);
+
+  if (directInstallIntents.has(intent)) return { type: 'local_reply', nextStage: intent === intents.renewal ? stages.renewal : stages.installingApp };
+  return { type: 'ai_reply', nextStage: stages.aiService };
+}
+
+function localFallbackForIntent(intent, stage) {
+  if (intent === intents.testRequest && stage === stages.waitingContactSaved) {
+    return 'Perfeito. Me manda seu nome também, por favor, para eu salvar seu contato certinho aqui e seguir com a liberação.';
+  }
+  if (intent === intents.testRequest && stage === stages.waitingName) {
+    return 'Obrigado. Agora me fala onde você vai usar: TV Smart, TV Box, Fire Stick, celular ou outro aparelho?';
+  }
+  if (intent === intents.testRequest && [stages.waitingDevice, stages.installingApp, stages.waitingLoginRelease].includes(stage)) {
+    return examplesApproved.testWithContact;
+  }
+  return localFallbackByIntent[intent] || fallback;
+}
+
+function relevantContextForIntent(intent, stage) {
+  const deviceEntry = Object.values(deviceInstallation).find((item) => item.intent === intent);
   return {
-    productOverview,
-    serviceRules,
-    currentStage: customerStage || localAnswer?.stage || 'suporte',
-    detectedIntent: intent,
-    relevantLocalAnswer: localAnswer,
-    relevantCommercialRule: commercialRules[intent.intent === 'pricing' ? 'values' : intent.intent === 'test_request' ? 'test' : intent.intent] || null,
-    relevantDeviceGuide: Object.keys(relevantDevices).length ? relevantDevices : null,
-    whenToAskArthur,
-    neverDo,
-    fallback
+    facts,
+    rules,
+    tone,
+    forbiddenPhrases,
+    stage,
+    intent,
+    deviceInstallation: deviceEntry || null,
+    loginRules,
+    commercialRules,
+    examplesApproved: {
+      productExplanationIdeas: examplesApproved.productExplanationIdeas,
+      smartTv: examplesApproved.smartTv,
+      support: examplesApproved.support
+    },
+    fallbackRules: {
+      fallback,
+      doNotUseFallbackFor: [
+        intents.priceRequest,
+        intents.testRequest,
+        intents.productExplanation,
+        intents.deviceQuestion,
+        intents.deviceLg,
+        intents.deviceSamsung,
+        intents.deviceAndroid,
+        intents.deviceIphone,
+        intents.deviceTvbox,
+        intents.deviceFirestick,
+        intents.supportProblem
+      ]
+    }
   };
 }
 
-function buildSystemPrompt({ messageText = '', customerStage = '' } = {}) {
-  const context = getRelevantContext(messageText, customerStage);
+function buildSystemPrompt({ messageText = '', customerStage = '', intent = '' } = {}) {
+  const detectedIntent = intent || detectIntent(messageText);
+  const context = relevantContextForIntent(detectedIntent, customerStage || stages.aiService);
   return [
-    'Você é atendente humano/vendedor da Primeflix.',
-    'Responda curto, natural, profissional e com foco em conduzir o cliente.',
-    'Não use markdown, negrito ou excesso de emoji.',
-    'Não use a frase "com isso eu te passo".',
-    'Não invente preço, plano, prazo, promoção ou desconto.',
-    'Não fale provedor antes da etapa de liberar usuário e senha.',
-    'Na instalação, fale somente o aplicativo ou caminho de instalação.',
-    'Não repita o fluxo inicial.',
-    `Etapa atual: ${context.currentStage}.`,
-    `Intenção detectada: ${context.detectedIntent.intent}.`,
+    'Voce e atendente humano/vendedor da Primeflix.',
+    'Use a base de conhecimento para raciocinar e escrever uma resposta natural.',
+    'Nao copie scripts longos. Varie a frase sem sair das regras.',
+    'Responda em 1 a 4 frases curtas.',
+    'Nao use markdown, negrito ou excesso de emoji.',
+    'Nao use as frases proibidas.',
+    'Nao invente preco, plano, prazo, promocao ou desconto.',
+    'Nao fale provedor na etapa de instalacao. Provedor so junto de usuario e senha.',
+    'Se a intencao for TV Smart, pergunte a marca da TV.',
     `Contexto relevante: ${JSON.stringify(context)}`
   ].join('\n');
 }
 
-function sanitizeWhatsAppReply(text) {
+function removeProviderIfInstalling(text, stage, intent) {
+  const installingIntents = new Set([
+    intents.deviceLg,
+    intents.deviceSamsung,
+    intents.deviceRoku,
+    intents.deviceAndroid,
+    intents.deviceIphone,
+    intents.deviceTvbox,
+    intents.deviceFirestick,
+    intents.deviceQuestion
+  ]);
+  if (stage !== stages.installingApp && !installingIntents.has(intent)) return text;
+  return text
+    .replace(/provedor\s*:?\s*primeflixapp/gi, '')
+    .replace(/primeflixapp/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function sanitizeWhatsAppReply(text, { stage = '', intent = '' } = {}) {
   let value = String(text || fallback);
   value = value.replace(/\*\*(.*?)\*\*/g, '$1');
   value = value.replace(/__(.*?)__/g, '$1');
-  value = value.replace(/[*_`>#-]/g, '');
-  value = value.replace(/com isso eu te passo/gi, 'assim eu te oriento');
+  value = value.replace(/[*_`>#]/g, '');
+  forbiddenPhrases.forEach((phrase) => {
+    value = value.replace(new RegExp(phrase, 'gi'), '');
+  });
+  value = removeProviderIfInstalling(value, stage, intent);
   value = value.replace(/\s{2,}/g, ' ').trim();
 
   const emojiMatches = value.match(/\p{Extended_Pictographic}/gu) || [];
@@ -385,25 +390,30 @@ function sanitizeWhatsAppReply(text) {
     });
   }
 
+  const sentences = value.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length > tone.maxSentences) value = sentences.slice(0, tone.maxSentences).join(' ');
+
   return value || fallback;
 }
 
 module.exports = {
-  productOverview,
-  serviceRules,
-  flowStages,
-  officialAudioContext,
-  deviceGuide,
+  stages,
+  intents,
+  facts,
+  rules,
+  tone,
+  forbiddenPhrases,
+  deviceInstallation,
+  loginRules,
   commercialRules,
-  approvedAnswers,
-  faq,
-  whenToAskArthur,
-  neverDo,
+  examplesApproved,
   fallback,
   normalizeText,
   detectIntent,
-  findLocalAnswer,
-  getRelevantContext,
+  stageFromCustomer,
+  actionForIntent,
+  localFallbackForIntent,
+  relevantContextForIntent,
   buildSystemPrompt,
   sanitizeWhatsAppReply
 };
