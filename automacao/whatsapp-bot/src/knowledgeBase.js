@@ -164,10 +164,10 @@ const localFallbackByIntent = {
   [intents.renewal]: 'Perfeito. Você quer continuar no plano mensal ou fazer upgrade para trimestral, semestral ou anual? Lembrando que o plano anual tem duas telas.',
   [intents.supportProblem]: examplesApproved.support,
   [intents.paymentQuestion]: 'Depois que você escolher o plano, eu te envio as opções de pagamento. Assim que confirmar, faço a ativação do seu acesso.',
-  [intents.installedApp]: 'Perfeito. Agora vou verificar a liberação do acesso para você usar no aplicativo.'
+  [intents.installedApp]: 'Perfeito. Você está com o aparelho em mãos para testar agora? Se sim, eu libero o acesso de teste.'
 };
 
-const fallback = 'Vou confirmar essa informação rapidinho para te passar certinho.';
+const fallback = 'Me fala se você quer ver valores, instalar no aparelho ou liberar um teste. Assim eu te ajudo pelo caminho certo.';
 
 const intentPatterns = [
   {
@@ -240,7 +240,7 @@ const intentPatterns = [
   },
   {
     intent: intents.humanRequest,
-    patterns: ['atendente', 'arthur', 'humano', 'falar com alguem', 'falar com alguém']
+    patterns: ['atendente', 'humano', 'falar com atendente', 'falar com suporte', 'falar com alguem', 'falar com alguém', 'chama o arthur', 'falar com arthur']
   }
 ];
 
@@ -299,6 +299,9 @@ function actionForIntent(intent, stage) {
 }
 
 function localFallbackForIntent(intent, stage) {
+  if (intent === intents.unknown) {
+    return fallback;
+  }
   if (intent === intents.contactSaved) {
     return 'Perfeito. Me manda seu nome também, por favor, para eu salvar seu contato certinho aqui e seguir com a liberação.';
   }

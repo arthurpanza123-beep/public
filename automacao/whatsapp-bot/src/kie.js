@@ -33,7 +33,7 @@ function extractText(payload) {
 }
 
 function sanitizeReply(text) {
-  const fallback = 'Vou verificar isso rapidinho pra te passar certinho.';
+  const fallback = 'Me fala se você quer ver valores, instalar no aparelho ou liberar um teste.';
   const value = String(text || '').trim() || fallback;
   const blocked = /(R\$|black friday|promo[cç][aã]o|\b\d+\s*(reais|meses|dias)\b)/i;
 
@@ -51,18 +51,25 @@ function formatConversationHistory(history = []) {
     .join('\n');
 }
 
-function buildPrompt({ customer, messageText, conversationHistory, knowledgeBase }) {
+function formatObsidian(snippets = []) {
+  if (!snippets.length) return '';
+  return snippets.map((item) => `Nota ${item.file}: ${item.text}`).join('\n');
+}
+
+function buildPrompt({ customer, messageText, conversationHistory, knowledgeBase, obsidianContext = [] }) {
   return [
     `Cliente: ${customer?.name || 'Cliente'}`,
     `Telefone: ${customer?.phone || ''}`,
     customer?.learnedAnswerContext ? `Resposta aprendida aprovada para pergunta parecida: ${customer.learnedAnswerContext}` : '',
     'Historico recente:',
     formatConversationHistory(conversationHistory) || 'Sem historico recente.',
+    'Notas do Obsidian relevantes:',
+    formatObsidian(obsidianContext) || 'Sem notas relevantes.',
     `Mensagem atual: ${messageText || ''}`
   ].filter(Boolean).join('\n');
 }
 
-function buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage, intent }) {
+function buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage, intent, obsidianContext }) {
   return {
     model: config.kieModel,
     max_tokens: maxTokens || config.kieMaxTokens,
@@ -70,7 +77,7 @@ function buildRequestBody({ customer, messageText, conversationHistory, knowledg
     messages: [
       {
         role: 'user',
-        content: buildPrompt({ customer, messageText, conversationHistory, knowledgeBase })
+        content: buildPrompt({ customer, messageText, conversationHistory, knowledgeBase, obsidianContext })
       }
     ]
   };
@@ -85,7 +92,7 @@ function buildHeaders() {
   };
 }
 
-async function generateReply({ customer, messageText, conversationHistory = [], knowledgeBase, maxTokens, customerStage, intent }) {
+async function generateReply({ customer, messageText, conversationHistory = [], knowledgeBase, maxTokens, customerStage, intent, obsidianContext = [] }) {
   if (!config.kieApiKey) {
     const error = new Error('KIE_API_KEY ausente.');
     error.code = 'KIE_MISSING_API_KEY';
@@ -93,7 +100,7 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
   }
 
   const url = getKieUrl();
-  const requestBody = buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage, intent });
+  const requestBody = buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage, intent, obsidianContext });
   const promptSize = JSON.stringify(requestBody).length;
 
   logger.info(

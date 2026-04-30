@@ -2,7 +2,9 @@ const config = require('./config');
 const logger = require('./logger');
 const supabase = require('./supabase');
 const kie = require('./kie');
+const localAi = require('./localAi');
 const knowledgeBase = require('./knowledgeBase');
+const obsidianKnowledge = require('./obsidianKnowledge');
 const { normalizePhone } = require('./phone');
 
 const initialFlowInProgress = new Set();
@@ -256,7 +258,7 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
       whatsapp,
       to: incoming.replyTo,
       customerId: customer.id,
-      text: 'Perfeito. Vou avisar Arthur para liberar seu teste certinho.',
+      text: 'Perfeito. Vou iniciar a liberação do teste certinho.',
       logContext: { phone: incoming.phone, decision: 'request_real_test' },
       stage: knowledgeBase.stages.waitingLoginRelease,
       intent
@@ -271,7 +273,7 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
       whatsapp,
       to: incoming.replyTo,
       customerId: customer.id,
-      text: 'Vou chamar Arthur pra te ajudar certinho por aqui.',
+      text: 'Certo, vou pausar o bot para atendimento humano por aqui.',
       logContext: { phone: incoming.phone, decision: 'needs_arthur' },
       stage: knowledgeBase.stages.human,
       intent
@@ -281,9 +283,10 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
   }
 
   let responseText;
+  const conversationHistory = await supabase.getRecentMessages(customer.id, 10);
+  const obsidianContext = obsidianKnowledge.getRelevantNotes(incoming.text);
   try {
     logger.info({ phone: incoming.phone, decision: 'ai_reply', intent }, 'DECISION');
-    const conversationHistory = await supabase.getRecentMessages(customer.id, 10);
     responseText = await kie.generateReply({
       customer: {
         ...customer,
@@ -293,22 +296,31 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
       conversationHistory,
       knowledgeBase,
       customerStage,
-      intent
+      intent,
+      obsidianContext
     });
     logger.info({ phone: incoming.phone, intent }, 'AI_RESPONSE_CREATED');
     if (/verificar|arthur|passar certinho/i.test(responseText)) {
       await sendQuestionToArthur({ customer, incoming, intent: { intent, stage: customerStage } });
     }
   } catch (error) {
-    logger.error({ err: error, phone: incoming.phone, intent }, 'Falha ao chamar IA.');
-    const localFallback = knowledgeBase.localFallbackForIntent(intent, customerStage);
-    if (localFallback !== knowledgeBase.fallback) {
-      logger.info({ phone: incoming.phone, intent }, 'LOCAL_ACTION_USED');
+    logger.error({ err: error, phone: incoming.phone, intent }, 'Falha ao chamar KIE. Tentando IA local.');
+    try {
+      responseText = await localAi.generateReply({
+        customer,
+        messageText: incoming.text,
+        conversationHistory,
+        knowledgeBase,
+        customerStage,
+        intent,
+        obsidianContext
+      });
+      logger.info({ phone: incoming.phone, intent }, 'LOCAL_AI_USED');
+    } catch (localError) {
+      logger.error({ err: localError, phone: incoming.phone, intent }, 'Falha na IA local.');
+      const localFallback = knowledgeBase.localFallbackForIntent(intent, customerStage);
+      logger.info({ phone: incoming.phone, intent }, localFallback === knowledgeBase.fallback ? 'FALLBACK_USED' : 'LOCAL_ACTION_USED');
       responseText = localFallback;
-    } else {
-      await sendQuestionToArthur({ customer, incoming, intent: { intent, stage: customerStage } });
-      logger.info({ phone: incoming.phone, intent }, 'FALLBACK_USED');
-      responseText = knowledgeBase.fallback;
     }
   }
 

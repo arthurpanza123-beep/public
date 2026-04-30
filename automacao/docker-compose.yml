@@ -12,11 +12,23 @@ services:
     volumes:
       - whatsapp_session:/app/sessions
       - ./material:/app/material:ro
+      - ./knowledge/obsidian:/app/knowledge/obsidian:ro
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3333/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 5
+    depends_on:
+      ollama:
+        condition: service_started
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
 
   tester:
     build:
@@ -65,3 +77,4 @@ volumes:
   whatsapp_session:
   tester_storage:
   tester_errors:
+  ollama_data:

@@ -75,6 +75,36 @@ TEST_FAKE_PASSWORD=123456
 
 Com esse modo ativo, quando o cliente estiver na etapa de liberar login e responder `sim`, o bot envia credenciais simuladas marcadas como `[MODO TESTE]`. Desative antes de usar em atendimento real.
 
+## IA Local Fallback
+
+Para sua VPS de 4 vCPU e 6 GB RAM, a recomendacao de custo-beneficio e `llama3.2:3b` via Ollama. Ele nao substitui a KIE como IA principal, mas segura a conversa quando a KIE cair ou demorar.
+
+Depois de subir os containers, baixe o modelo uma vez:
+
+```bash
+cd /opt/public/automacao
+docker compose exec ollama ollama pull llama3.2:3b
+```
+
+No `.env`, deixe:
+
+```env
+LOCAL_AI_ENABLED=true
+LOCAL_AI_BASE_URL=http://ollama:11434
+LOCAL_AI_MODEL=llama3.2:3b
+LOCAL_AI_TIMEOUT_MS=60000
+```
+
+## Obsidian
+
+Para usar Obsidian como base de estudo, sincronize ou copie suas notas `.md` para:
+
+```txt
+/opt/public/automacao/knowledge/obsidian
+```
+
+O bot busca trechos relevantes dessas notas e envia como contexto para a KIE e para a IA local. Isso nao treina o modelo do zero, mas funciona como memoria/RAG simples e ja ajuda bastante.
+
 ## Comeco rapido
 
 1. Copie `.env.example` para `.env`.
