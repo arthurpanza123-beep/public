@@ -43,6 +43,7 @@ O endpoint padrao da KIE AI para Claude Haiku 4.5 esta configurado como:
 KIE_BASE_URL=https://api.kie.ai
 KIE_CHAT_ENDPOINT=/claude/v1/messages
 KIE_MODEL=claude-haiku-4-5
+KIE_TIMEOUT_MS=60000
 ```
 
 Se a KIE mudar o endpoint no painel ou na documentacao, atualize apenas `KIE_CHAT_ENDPOINT` no `.env`. O bot monta a URL final com `KIE_BASE_URL + KIE_CHAT_ENDPOINT` e nunca registra `KIE_API_KEY` nos logs.
@@ -55,6 +56,8 @@ docker compose exec whatsapp-bot npm run test:kie
 ```
 
 Se aparecer `Missing script: "test:kie"`, o container ainda esta com a imagem antiga. Rode `docker compose down` e `docker compose up -d --build` antes de testar novamente.
+
+O teste usa um prompt minimo, `max_tokens=20` e o mesmo timeout configurado em `KIE_TIMEOUT_MS`. Nos logs, confira `KIE_REQUEST` com `url`, `model`, `promptSize` e `timeout`, e depois `KIE_RESPONSE` ou `KIE_ERROR`.
 
 ## Comeco rapido
 

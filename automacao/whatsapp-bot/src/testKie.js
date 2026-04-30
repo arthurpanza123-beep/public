@@ -1,5 +1,10 @@
 const kie = require('./kie');
-const knowledgeBase = require('./knowledgeBase');
+
+const minimalKnowledgeBase = {
+  buildSystemPrompt() {
+    return 'Responda exatamente o que foi pedido, sem adicionar explicacoes.';
+  }
+};
 
 async function main() {
   const reply = await kie.generateReply({
@@ -8,9 +13,10 @@ async function main() {
       name: 'Teste KIE',
       phone: '00000000000'
     },
-    messageText: 'Responda apenas: KIE OK',
+    messageText: 'Responda exatamente: KIE OK',
     conversationHistory: [],
-    knowledgeBase
+    knowledgeBase: minimalKnowledgeBase,
+    maxTokens: 20
   });
 
   console.log(`KIE_TEST_RESPONSE=${reply}`);

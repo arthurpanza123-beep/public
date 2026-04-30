@@ -62,10 +62,10 @@ function buildPrompt({ customer, messageText, conversationHistory, knowledgeBase
   ].filter(Boolean).join('\n');
 }
 
-function buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase }) {
+function buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens }) {
   return {
     model: config.kieModel,
-    max_tokens: config.kieMaxTokens,
+    max_tokens: maxTokens || config.kieMaxTokens,
     system: knowledgeBase.buildSystemPrompt(),
     messages: [
       {
@@ -85,7 +85,7 @@ function buildHeaders() {
   };
 }
 
-async function generateReply({ customer, messageText, conversationHistory = [], knowledgeBase }) {
+async function generateReply({ customer, messageText, conversationHistory = [], knowledgeBase, maxTokens }) {
   if (!config.kieApiKey) {
     const error = new Error('KIE_API_KEY ausente.');
     error.code = 'KIE_MISSING_API_KEY';
@@ -93,7 +93,7 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
   }
 
   const url = getKieUrl();
-  const requestBody = buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase });
+  const requestBody = buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens });
   const promptSize = JSON.stringify(requestBody).length;
 
   logger.info(
@@ -101,7 +101,8 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
       event: 'KIE_REQUEST',
       url,
       model: config.kieModel,
-      promptSize
+      promptSize,
+      timeout: config.kieTimeoutMs
     },
     'KIE_REQUEST'
   );
@@ -112,7 +113,7 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
       requestBody,
       {
         headers: buildHeaders(),
-        timeout: config.requestTimeoutMs
+        timeout: config.kieTimeoutMs
       }
     );
 
@@ -121,7 +122,7 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
       {
         event: 'KIE_RESPONSE',
         status: response.status,
-        textPreview: reply.slice(0, 160)
+        text: reply.slice(0, 300)
       },
       'KIE_RESPONSE'
     );

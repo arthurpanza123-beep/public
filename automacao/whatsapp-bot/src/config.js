@@ -46,6 +46,7 @@ module.exports = {
   kieApiKey: process.env.KIE_API_KEY || '',
   kieModel: process.env.KIE_MODEL || 'claude-haiku-4-5',
   kieMaxTokens: readInt('KIE_MAX_TOKENS', 500),
+  kieTimeoutMs: readInt('KIE_TIMEOUT_MS', 60000),
   kieAnthropicVersion: process.env.KIE_ANTHROPIC_VERSION || '2023-06-01',
   sessionDir: resolveEnvPath(process.env.WHATSAPP_SESSION_DIR, 'sessions'),
   materialDir: resolveEnvPath(process.env.MATERIAL_DIR, 'material'),
