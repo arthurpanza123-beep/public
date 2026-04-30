@@ -85,9 +85,10 @@ async function sendValues({ whatsapp, to, customerId }) {
 }
 
 async function replyText({ whatsapp, to, customerId, text, logContext }) {
-  await whatsapp.sendText({ to, text });
-  await saveOutboundText(customerId, text);
-  logger.info({ ...logContext, response: text }, 'MESSAGE_SENT');
+  const safeText = knowledgeBase.sanitizeWhatsAppReply(text);
+  await whatsapp.sendText({ to, text: safeText });
+  await saveOutboundText(customerId, safeText);
+  logger.info({ ...logContext, response: safeText }, 'MESSAGE_SENT');
 }
 
 async function sendQuestionToArthur({ customer, incoming, intent }) {
@@ -108,7 +109,7 @@ async function sendQuestionToArthur({ customer, incoming, intent }) {
 
     await supabase.saveUnknownQuestion({
       question: incoming.text,
-      tags: [intent.intent || 'unknown', 'arthur']
+      tags: [intent.intent || intent.stage || 'unknown', 'arthur']
     });
   } catch (error) {
     logger.error({ err: error, phone: incoming.phone }, 'Nao foi possivel registrar duvida em bot_events/learned_answers.');
@@ -118,8 +119,9 @@ async function sendQuestionToArthur({ customer, incoming, intent }) {
 }
 
 async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
+  const customerStage = customer.status || 'suporte';
   const intent = knowledgeBase.detectIntent(incoming.text);
-  logger.info({ phone: incoming.phone, intent: intent.intent, action: intent.action, confidence: intent.confidence }, 'INTENT_DETECTED');
+  logger.info({ phone: incoming.phone, intent: intent.intent, action: intent.action, stage: customerStage }, 'INTENT_DETECTED');
 
   let learnedAnswer = null;
   try {
@@ -128,26 +130,37 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
     logger.error({ err: error, phone: incoming.phone }, 'Nao foi possivel consultar learned_answers. Continuando atendimento.');
   }
   if (learnedAnswer) {
-    logger.info({ phone: incoming.phone, learnedAnswerId: learnedAnswer.id }, 'LEARNED_ANSWER_CONTEXT');
+    logger.info({ phone: incoming.phone, learnedAnswerId: learnedAnswer.id }, 'LEARNED_ANSWER_USED');
+    await replyText({
+      whatsapp,
+      to: incoming.replyTo,
+      customerId: customer.id,
+      text: learnedAnswer.answer,
+      logContext: { phone: incoming.phone, decision: 'learned_answer' }
+    });
+    return;
   }
 
-  const baseAnswer = knowledgeBase.answerFromBase(incoming.text);
-  if (baseAnswer?.action === 'send_values_image') {
-    logger.info({ phone: incoming.phone, decision: 'send_values', intent: baseAnswer.intent }, 'DECISION=send_values');
+  const localAnswer = knowledgeBase.findLocalAnswer(incoming.text, customerStage);
+  if (localAnswer?.action === 'send_values_image') {
+    logger.info({ phone: incoming.phone, decision: 'send_values', source: localAnswer.source }, 'DECISION=send_values');
     await sendValues({ whatsapp, to: incoming.replyTo, customerId: customer.id });
     logger.info({ phone: incoming.phone, response: config.imageValores }, 'MESSAGE_SENT');
     return;
   }
 
-  if (baseAnswer?.intent === 'test_request') {
-    logger.info({ phone: incoming.phone, decision: 'confirm_test_now', intent: baseAnswer.intent }, 'DECISION=confirm_test_now');
+  if (localAnswer?.answer) {
+    logger.info({ phone: incoming.phone, decision: 'local_answer', source: localAnswer.source, stage: localAnswer.stage }, 'LOCAL_ANSWER_USED');
     await replyText({
       whatsapp,
       to: incoming.replyTo,
       customerId: customer.id,
-      text: baseAnswer.answer,
-      logContext: { phone: incoming.phone, decision: 'confirm_test_now', intent: baseAnswer.intent }
+      text: localAnswer.answer,
+      logContext: { phone: incoming.phone, decision: 'local_answer', intent: localAnswer.intent, stage: localAnswer.stage }
     });
+    if (localAnswer.needsArthur) {
+      await sendQuestionToArthur({ customer, incoming, intent: localAnswer });
+    }
     return;
   }
 
@@ -175,7 +188,8 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
       },
       messageText: incoming.text,
       conversationHistory,
-      knowledgeBase
+      knowledgeBase,
+      customerStage
     });
     logger.info({ phone: incoming.phone, intent: intent.intent }, 'AI_RESPONSE_CREATED');
     if (/verificar|arthur|passar certinho/i.test(responseText)) {
@@ -184,7 +198,7 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
   } catch (error) {
     logger.error({ err: error, phone: incoming.phone }, 'Falha ao chamar IA. Duvida sera enviada para Arthur.');
     await sendQuestionToArthur({ customer, incoming, intent });
-    responseText = knowledgeBase.unknownQuestionFlow.clientAnswer;
+    responseText = knowledgeBase.fallback;
   }
 
   await replyText({

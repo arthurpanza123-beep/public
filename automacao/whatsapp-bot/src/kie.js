@@ -62,11 +62,11 @@ function buildPrompt({ customer, messageText, conversationHistory, knowledgeBase
   ].filter(Boolean).join('\n');
 }
 
-function buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens }) {
+function buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage }) {
   return {
     model: config.kieModel,
     max_tokens: maxTokens || config.kieMaxTokens,
-    system: knowledgeBase.buildSystemPrompt(),
+    system: knowledgeBase.buildSystemPrompt({ messageText, customerStage }),
     messages: [
       {
         role: 'user',
@@ -85,7 +85,7 @@ function buildHeaders() {
   };
 }
 
-async function generateReply({ customer, messageText, conversationHistory = [], knowledgeBase, maxTokens }) {
+async function generateReply({ customer, messageText, conversationHistory = [], knowledgeBase, maxTokens, customerStage }) {
   if (!config.kieApiKey) {
     const error = new Error('KIE_API_KEY ausente.');
     error.code = 'KIE_MISSING_API_KEY';
@@ -93,7 +93,7 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
   }
 
   const url = getKieUrl();
-  const requestBody = buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens });
+  const requestBody = buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase, maxTokens, customerStage });
   const promptSize = JSON.stringify(requestBody).length;
 
   logger.info(
@@ -117,7 +117,9 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
       }
     );
 
-    const reply = sanitizeReply(extractText(response.data));
+    const reply = knowledgeBase.sanitizeWhatsAppReply
+      ? knowledgeBase.sanitizeWhatsAppReply(sanitizeReply(extractText(response.data)))
+      : sanitizeReply(extractText(response.data));
     logger.info(
       {
         event: 'KIE_RESPONSE',

@@ -29,11 +29,13 @@ Depois do fluxo inicial, o bot segue esta ordem:
 
 1. Detecta a intencao da mensagem.
 2. Procura uma resposta aprovada em `learned_answers`.
-3. Procura uma resposta direta em `knowledgeBase.js`.
-4. Chama a KIE AI com a base de conhecimento como contexto.
+3. Procura uma resposta local aprovada em `knowledgeBase.js`.
+4. Chama a KIE AI somente quando nao houver resposta local, enviando apenas o trecho relevante da base como contexto.
 5. Se a duvida nao estiver na base, registra em `bot_events`, salva em `learned_answers` como `approved=false` e responde que vai verificar com Arthur.
 
 Com `LOG_LEVEL=debug`, os logs mostram intencao detectada, resposta usada da base, resposta criada por IA e duvida enviada para Arthur.
+
+As respostas do WhatsApp sao sanitizadas antes do envio: sem markdown, sem negrito, sem excesso de emoji e sem frases proibidas. Valores sempre usam `valor.jpeg` com a legenda oficial configurada no `.env`.
 
 ## KIE AI
 
