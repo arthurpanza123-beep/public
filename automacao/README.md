@@ -62,6 +62,19 @@ Se aparecer `Missing script: "test:kie"`, o container ainda esta com a imagem an
 
 O teste usa um prompt minimo, `max_tokens=20` e o mesmo timeout configurado em `KIE_TIMEOUT_MS`. Nos logs, confira `KIE_REQUEST` com `url`, `model`, `promptSize` e `timeout`, e depois `KIE_RESPONSE` ou `KIE_ERROR`.
 
+## Modo Teste Fake
+
+Para testar a conversa sem criar um teste real no painel, ative temporariamente no `.env`:
+
+```env
+TEST_FAKE_MODE=true
+TEST_FAKE_PROVIDER=primeflixapp
+TEST_FAKE_USER=teste.primeflix
+TEST_FAKE_PASSWORD=123456
+```
+
+Com esse modo ativo, quando o cliente estiver na etapa de liberar login e responder `sim`, o bot envia credenciais simuladas marcadas como `[MODO TESTE]`. Desative antes de usar em atendimento real.
+
 ## Comeco rapido
 
 1. Copie `.env.example` para `.env`.

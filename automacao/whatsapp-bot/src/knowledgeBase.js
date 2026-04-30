@@ -23,6 +23,8 @@ const intents = {
   deviceTvbox: 'device_tvbox',
   deviceFirestick: 'device_firestick',
   installedApp: 'installed_app',
+  contactSaved: 'contact_saved',
+  affirmative: 'affirmative',
   renewal: 'renewal',
   supportProblem: 'support_problem',
   paymentQuestion: 'payment_question',
@@ -213,6 +215,14 @@ const intentPatterns = [
     patterns: ['ja instalei', 'já instalei', 'instalei', 'baixei', 'ja baixei', 'já baixei']
   },
   {
+    intent: intents.contactSaved,
+    patterns: ['salvei', 'ja salvei', 'já salvei', 'salvei o contato', 'contato salvo']
+  },
+  {
+    intent: intents.affirmative,
+    patterns: ['sim', 'ok', 'pode', 'pode sim', 'estou sim', 'to sim', 'tô sim', 'estou com aparelho', 'estou com a tv', 'estou com tv']
+  },
+  {
     intent: intents.deviceQuestion,
     patterns: ['tv smart', 'smart tv', 'smart', 'minha tv e smart', 'minha tv é smart', 'e smart sim', 'é smart sim']
   },
@@ -265,6 +275,9 @@ function actionForIntent(intent, stage) {
   if (intent === intents.priceRequest) return { type: 'send_values', nextStage: stages.aiService };
   if (intent === intents.humanRequest) return { type: 'needs_arthur', nextStage: stages.human };
   if (intent === intents.paymentQuestion) return { type: 'local_reply', needsArthur: true, nextStage: stages.aiService };
+  if (intent === intents.contactSaved) return { type: 'local_reply', nextStage: stages.waitingName };
+  if (intent === intents.affirmative && [stages.waitingLoginRelease, stages.human].includes(stage)) return { type: 'fake_or_request_test', nextStage: stages.aiService };
+  if (intent === intents.affirmative && stage === stages.waitingContactSaved) return { type: 'local_reply', nextStage: stages.waitingName };
   if (intent === intents.testRequest) return { type: 'local_reply', nextStage: stage === stages.waitingDevice || stage === stages.installingApp || stage === stages.waitingLoginRelease ? stages.waitingLoginRelease : stages.waitingContactSaved };
   if (intent === intents.installedApp) return { type: 'local_reply', needsArthur: true, nextStage: stages.waitingLoginRelease };
 
@@ -286,6 +299,12 @@ function actionForIntent(intent, stage) {
 }
 
 function localFallbackForIntent(intent, stage) {
+  if (intent === intents.contactSaved) {
+    return 'Perfeito. Me manda seu nome também, por favor, para eu salvar seu contato certinho aqui e seguir com a liberação.';
+  }
+  if (intent === intents.affirmative && stage === stages.waitingContactSaved) {
+    return 'Perfeito. Agora me manda seu nome, por favor, para eu seguir com a liberação.';
+  }
   if (intent === intents.testRequest && stage === stages.waitingContactSaved) {
     return 'Perfeito. Me manda seu nome também, por favor, para eu salvar seu contato certinho aqui e seguir com a liberação.';
   }

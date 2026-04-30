@@ -108,6 +108,46 @@ async function safeUpdateStage(customerId, stage) {
   }
 }
 
+function isNameLike(text) {
+  const value = String(text || '').trim();
+  if (!value || value.length > 40) return false;
+  return !/\b(valor|preco|preço|teste|tv|smart|android|iphone|box|fire|pix|pagamento|travando|erro)\b/i.test(value);
+}
+
+function fakeTestExpiration() {
+  return new Date(Date.now() + 60 * 60 * 1000).toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+async function sendFakeTestCredentials({ whatsapp, to, customerId }) {
+  const text = [
+    '[MODO TESTE]',
+    'Teste gratuito liberado para simulação.',
+    `Provedor: ${config.testFakeProvider}`,
+    `Usuário: ${config.testFakeUser}`,
+    `Senha: ${config.testFakePassword}`,
+    `Vencimento: ${fakeTestExpiration()}`,
+    'Agora é só colocar esses dados no aplicativo e testar.'
+  ].join('\n');
+
+  await replyText({
+    whatsapp,
+    to,
+    customerId,
+    text,
+    logContext: { decision: 'fake_test_sent' },
+    stage: knowledgeBase.stages.aiService,
+    intent: 'fake_test'
+  });
+  logger.info({ customerId }, 'FAKE_TEST_SENT');
+}
+
 async function sendQuestionToArthur({ customer, incoming, intent }) {
   const payload = {
     phone: incoming.phone,
@@ -137,6 +177,31 @@ async function sendQuestionToArthur({ customer, incoming, intent }) {
 
 async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
   const customerStage = knowledgeBase.stageFromCustomer(customer);
+
+  if (customerStage === knowledgeBase.stages.waitingName && isNameLike(incoming.text)) {
+    logger.info({ phone: incoming.phone, stage: customerStage }, 'STAGE_DETECTED');
+    logger.info({ phone: incoming.phone, intent: 'captured_name' }, 'INTENT_DETECTED');
+    logger.info({ phone: incoming.phone, decision: 'save_name' }, 'DECISION');
+    try {
+      await supabase.updateCustomerProfile(customer.id, {
+        name: incoming.text.trim(),
+        stage: knowledgeBase.stages.waitingDevice
+      });
+    } catch (error) {
+      logger.error({ err: error, phone: incoming.phone }, 'Nao foi possivel salvar nome do cliente.');
+    }
+    await replyText({
+      whatsapp,
+      to: incoming.replyTo,
+      customerId: customer.id,
+      text: `Obrigado, ${incoming.text.trim()}. Agora me fala onde você vai usar: TV Smart, TV Box, Fire Stick, celular ou outro aparelho?`,
+      logContext: { phone: incoming.phone, decision: 'name_saved' },
+      stage: knowledgeBase.stages.waitingDevice,
+      intent: 'captured_name'
+    });
+    return;
+  }
+
   const intent = knowledgeBase.detectIntent(incoming.text);
   const action = knowledgeBase.actionForIntent(intent, customerStage);
   logger.info({ phone: incoming.phone, stage: customerStage }, 'STAGE_DETECTED');
@@ -175,6 +240,27 @@ async function answerAfterInitialFlow({ whatsapp, incoming, customer }) {
     if (action.needsArthur) {
       await sendQuestionToArthur({ customer, incoming, intent: { intent, stage: action.nextStage } });
     }
+    return;
+  }
+
+  if (action.type === 'fake_or_request_test') {
+    logger.info({ phone: incoming.phone, decision: config.testFakeMode ? 'fake_test' : 'request_real_test', intent }, 'DECISION');
+    if (config.testFakeMode) {
+      await sendFakeTestCredentials({ whatsapp, to: incoming.replyTo, customerId: customer.id });
+      await safeUpdateStage(customer.id, action.nextStage);
+      return;
+    }
+
+    await sendQuestionToArthur({ customer, incoming, intent: { intent, stage: customerStage } });
+    await replyText({
+      whatsapp,
+      to: incoming.replyTo,
+      customerId: customer.id,
+      text: 'Perfeito. Vou avisar Arthur para liberar seu teste certinho.',
+      logContext: { phone: incoming.phone, decision: 'request_real_test' },
+      stage: knowledgeBase.stages.waitingLoginRelease,
+      intent
+    });
     return;
   }
 

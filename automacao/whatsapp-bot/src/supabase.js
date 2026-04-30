@@ -122,6 +122,23 @@ async function updateCustomerStage(customerId, stage) {
   return Array.isArray(data) ? data[0] : data;
 }
 
+async function updateCustomerProfile(customerId, fields = {}) {
+  if (!customerId) return null;
+  const allowed = {};
+  ['name', 'stage', 'status', 'device', 'app_used', 'notes'].forEach((key) => {
+    if (fields[key] !== undefined) allowed[key] = fields[key];
+  });
+  if (!Object.keys(allowed).length) return null;
+  allowed.last_message_at = new Date().toISOString();
+  const data = await request(
+    'patch',
+    `customers?id=eq.${encodeURIComponent(customerId)}`,
+    allowed,
+    'return=representation'
+  );
+  return Array.isArray(data) ? data[0] : data;
+}
+
 async function findLearnedAnswer(question) {
   const normalizedQuestion = normalizeText(question);
   if (!normalizedQuestion) return null;
@@ -178,6 +195,7 @@ module.exports = {
   getRecentMessages,
   markInitialFlowSent,
   updateCustomerStage,
+  updateCustomerProfile,
   findLearnedAnswer,
   saveUnknownQuestion,
   saveBotEvent
