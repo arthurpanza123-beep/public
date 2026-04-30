@@ -2,11 +2,30 @@ const axios = require('axios');
 const config = require('./config');
 const logger = require('./logger');
 
+function joinUrl(baseUrl, endpoint) {
+  const base = String(baseUrl || '').replace(/\/+$/, '');
+  const path = String(endpoint || '').replace(/^\/?/, '/');
+  return `${base}${path}`;
+}
+
+function getKieUrl() {
+  if (config.kieApiUrl) return config.kieApiUrl;
+  return joinUrl(config.kieBaseUrl, config.kieChatEndpoint);
+}
+
 function extractText(payload) {
+  if (Array.isArray(payload?.content)) {
+    return payload.content
+      .map((part) => part?.text || '')
+      .join('')
+      .trim();
+  }
+
   return (
     payload?.choices?.[0]?.message?.content ||
     payload?.choices?.[0]?.text ||
     payload?.message?.content ||
+    payload?.content?.text ||
     payload?.content ||
     payload?.response ||
     ''
@@ -32,24 +51,38 @@ function formatConversationHistory(history = []) {
     .join('\n');
 }
 
-function buildMessages({ customer, messageText, conversationHistory, knowledgeBase }) {
+function buildPrompt({ customer, messageText, conversationHistory, knowledgeBase }) {
   return [
-    {
-      role: 'system',
-      content: knowledgeBase.buildSystemPrompt()
-    },
-    {
-      role: 'user',
-      content: [
-        `Cliente: ${customer?.name || 'Cliente'}`,
-        `Telefone: ${customer?.phone || ''}`,
-        customer?.learnedAnswerContext ? `Resposta aprendida aprovada para pergunta parecida: ${customer.learnedAnswerContext}` : '',
-        'Historico recente:',
-        formatConversationHistory(conversationHistory) || 'Sem historico recente.',
-        `Mensagem atual: ${messageText || ''}`
-      ].filter(Boolean).join('\n')
-    }
-  ];
+    `Cliente: ${customer?.name || 'Cliente'}`,
+    `Telefone: ${customer?.phone || ''}`,
+    customer?.learnedAnswerContext ? `Resposta aprendida aprovada para pergunta parecida: ${customer.learnedAnswerContext}` : '',
+    'Historico recente:',
+    formatConversationHistory(conversationHistory) || 'Sem historico recente.',
+    `Mensagem atual: ${messageText || ''}`
+  ].filter(Boolean).join('\n');
+}
+
+function buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase }) {
+  return {
+    model: config.kieModel,
+    max_tokens: config.kieMaxTokens,
+    system: knowledgeBase.buildSystemPrompt(),
+    messages: [
+      {
+        role: 'user',
+        content: buildPrompt({ customer, messageText, conversationHistory, knowledgeBase })
+      }
+    ]
+  };
+}
+
+function buildHeaders() {
+  return {
+    Authorization: `Bearer ${config.kieApiKey}`,
+    'X-Api-Key': config.kieApiKey,
+    'anthropic-version': config.kieAnthropicVersion,
+    'Content-Type': 'application/json'
+  };
 }
 
 async function generateReply({ customer, messageText, conversationHistory = [], knowledgeBase }) {
@@ -59,33 +92,26 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
     throw error;
   }
 
-  const messages = buildMessages({ customer, messageText, conversationHistory, knowledgeBase });
-  const requestBody = {
-    model: config.kieModel,
-    temperature: 0.2,
-    messages
-  };
+  const url = getKieUrl();
+  const requestBody = buildRequestBody({ customer, messageText, conversationHistory, knowledgeBase });
+  const promptSize = JSON.stringify(requestBody).length;
 
   logger.info(
     {
       event: 'KIE_REQUEST',
+      url,
       model: config.kieModel,
-      customerId: customer?.id,
-      phone: customer?.phone,
-      messageText
+      promptSize
     },
     'KIE_REQUEST'
   );
 
   try {
     const response = await axios.post(
-      config.kieApiUrl,
+      url,
       requestBody,
       {
-        headers: {
-          Authorization: `Bearer ${config.kieApiKey}`,
-          'Content-Type': 'application/json'
-        },
+        headers: buildHeaders(),
         timeout: config.requestTimeoutMs
       }
     );
@@ -95,9 +121,7 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
       {
         event: 'KIE_RESPONSE',
         status: response.status,
-        customerId: customer?.id,
-        phone: customer?.phone,
-        reply
+        textPreview: reply.slice(0, 160)
       },
       'KIE_RESPONSE'
     );
@@ -108,9 +132,7 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
         event: 'KIE_ERROR',
         status: error.response?.status,
         body: error.response?.data,
-        message: error.message,
-        customerId: customer?.id,
-        phone: customer?.phone
+        message: error.message
       },
       'KIE_ERROR'
     );
@@ -118,4 +140,9 @@ async function generateReply({ customer, messageText, conversationHistory = [], 
   }
 }
 
-module.exports = { generateReply, sanitizeReply };
+module.exports = {
+  generateReply,
+  sanitizeReply,
+  getKieUrl,
+  buildRequestBody
+};

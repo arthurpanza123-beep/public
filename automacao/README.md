@@ -35,6 +35,25 @@ Depois do fluxo inicial, o bot segue esta ordem:
 
 Com `LOG_LEVEL=debug`, os logs mostram intencao detectada, resposta usada da base, resposta criada por IA e duvida enviada para Arthur.
 
+## KIE AI
+
+O endpoint padrao da KIE AI para Claude Haiku 4.5 esta configurado como:
+
+```env
+KIE_BASE_URL=https://api.kie.ai
+KIE_CHAT_ENDPOINT=/claude/v1/messages
+KIE_MODEL=claude-haiku-4-5
+```
+
+Se a KIE mudar o endpoint no painel ou na documentacao, atualize apenas `KIE_CHAT_ENDPOINT` no `.env`. O bot monta a URL final com `KIE_BASE_URL + KIE_CHAT_ENDPOINT` e nunca registra `KIE_API_KEY` nos logs.
+
+Teste a KIE antes do WhatsApp:
+
+```bash
+cd automacao/whatsapp-bot
+npm run test:kie
+```
+
 ## Comeco rapido
 
 1. Copie `.env.example` para `.env`.

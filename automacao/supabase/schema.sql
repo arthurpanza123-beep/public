@@ -78,6 +78,9 @@ create table if not exists public.bot_events (
   created_at timestamptz not null default now()
 );
 
+alter table public.bot_events
+  add column if not exists payload jsonb not null default '{}'::jsonb;
+
 create index if not exists customers_phone_idx on public.customers(phone);
 create index if not exists customers_last_message_at_idx on public.customers(last_message_at desc);
 create index if not exists messages_customer_created_idx on public.messages(customer_id, created_at desc);
