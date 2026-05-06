@@ -1,0 +1,30 @@
+{
+  "name": "xcloud-telegram-bot",
+  "version": "1.0.0",
+  "description": "Bot Telegram para ativacao XCloud e app alternativo.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "setup-session": "node src/setup-session.js",
+    "doctor": "node src/doctor.js",
+    "test": "node src/validate.js",
+    "install:browsers": "npx playwright install chromium --with-deps"
+  },
+  "keywords": [
+    "telegram",
+    "playwright",
+    "xcloud",
+    "automation"
+  ],
+  "author": "Arthur Panza / Central Play",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "playwright": "^1.49.1",
+    "telegraf": "^4.16.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

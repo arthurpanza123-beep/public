@@ -1,0 +1,11 @@
+services:
+  xcloud-telegram-bot:
+    build: .
+    container_name: xcloud-telegram-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./storage:/app/storage
+      - ./.xcloud-profile:/app/.xcloud-profile

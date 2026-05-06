@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+!.env.example
+playwright-report/
+test-results/
+.xcloud-profile/
+data/state.json
+data/history.jsonl
+data/screenshots/*.png
+storage/screenshots/*.png
+npm-debug.log*
+.DS_Store
